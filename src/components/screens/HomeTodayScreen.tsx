@@ -95,6 +95,10 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
   const [pullResults, setPullResults] = useState<{ id: string; summary: string; fullText: string; sourceUrl: string; dateStr: string; category: SourceCategory; sourceType: SourceType }[]>([]);
   const [pullLoading, setPullLoading] = useState<'' | 'gbif' | 'openalex' | 'crossref' | 'ebird' | 'firms' | 'inaturalist' | 'semanticscholar' | 'feed'>('');
   const [pullError, setPullError] = useState('');
+  // CHANGE: replaces the hardcoded 'sources connected' badge with a real,
+  // measured count -- a source only counts once it has actually succeeded,
+  // never just because it was attempted.
+  const [connectedCount, setConnectedCount] = useState(0);
   const [apiKeys, setApiKeys] = useState(() => loadApiKeys());
 
   const saveApiKeys = (next: { ebird: string; firms: string }) => {
@@ -242,20 +246,33 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
     setPullLoading('feed');
     setPullError('');
     const errors: string[] = [];
+    let successCount = 0;
+    // CHANGE: labeled wrapper -- increments successCount only on a real
+    // success, so the connected-sources badge reflects what actually worked
+    // this refresh, not what was merely attempted.
+    const track = (label: string, promise: Promise<any[]>) =>
+      promise
+        .then((r) => { successCount += 1; return r; })
+        .catch((e: any) => { errors.push(`${label}: ${e.message}`); return []; });
+
+    // CHANGE: Semantic Scholar removed -- confirmed via a real failed fetch
+    // that its public endpoint doesn't reliably permit direct browser CORS
+    // calls, despite not requiring a key. Being keyless isn't the same as
+    // being browser-callable, and this one turned out not to be.
     const tasks: Promise<any[]>[] = [
-      fetchGbif(query).catch((e: any) => { errors.push(`GBIF: ${e.message}`); return []; }),
-      fetchOpenAlex(query).catch((e: any) => { errors.push(`OpenAlex: ${e.message}`); return []; }),
-      fetchCrossref(query).catch((e: any) => { errors.push(`Crossref: ${e.message}`); return []; }),
-      fetchInaturalist(query).catch((e: any) => { errors.push(`iNaturalist: ${e.message}`); return []; }),
-      fetchSemanticScholar(query).catch((e: any) => { errors.push(`Semantic Scholar: ${e.message}`); return []; }),
+      track('GBIF', fetchGbif(query)),
+      track('OpenAlex', fetchOpenAlex(query)),
+      track('Crossref', fetchCrossref(query)),
+      track('iNaturalist', fetchInaturalist(query)),
     ];
-    if (apiKeys.ebird.trim()) tasks.push(fetchEbird().catch((e: any) => { errors.push(`eBird: ${e.message}`); return []; }));
-    if (apiKeys.firms.trim()) tasks.push(fetchFirms().catch((e: any) => { errors.push(`NASA FIRMS: ${e.message}`); return []; }));
+    if (apiKeys.ebird.trim()) tasks.push(track('eBird', fetchEbird()));
+    if (apiKeys.firms.trim()) tasks.push(track('NASA FIRMS', fetchFirms()));
 
     const allResults = await Promise.all(tasks);
     const combined = allResults.flat();
     combined.sort((a, b) => (b.dateStr || '').localeCompare(a.dateStr || ''));
     setPullResults(combined);
+    setConnectedCount(successCount);
     if (errors.length > 0) setPullError(errors.join(' \u2014 '));
     setPullLoading('');
   };
@@ -510,7 +527,7 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
           <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-[11px] font-mono uppercase text-zinc-600 block">Live Intelligence Feed (auto-refreshing, real APIs \u2014 no AI involved)</span>
             <span className="text-[10px] font-mono text-zinc-500">
-              {5 + (apiKeys.ebird.trim() ? 1 : 0) + (apiKeys.firms.trim() ? 1 : 0)} sources connected
+              {connectedCount} source{connectedCount === 1 ? '' : 's'} connected
             </span>
           </div>
           <div>

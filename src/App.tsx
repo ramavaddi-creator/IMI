@@ -36,7 +36,7 @@ export default function App() {
   const [records, setRecords] = useState<IntelligenceRecord[]>(INITIAL_INTELLIGENCE_RECORDS);
   const [activeRecordId, setActiveRecordId] = useState<string>(INITIAL_INTELLIGENCE_RECORDS[0]?.id || '');
   const [decisions, setDecisions] = useState<DecisionItem[]>(INITIAL_DECISIONS);
-  const [outcomes] = useState<OutcomeItem[]>(INITIAL_OUTCOMES);
+  const [outcomes, setOutcomes] = useState<OutcomeItem[]>(INITIAL_OUTCOMES);
   const [searchResults] = useState<SearchQueryResult[]>(INITIAL_SEARCH_RESULTS);
 
   // CHANGE: Wave 0 backend wiring. Real persistence for Inbox items via the
@@ -55,6 +55,35 @@ export default function App() {
       .catch((err) => {
         console.error('Could not reach the IMI backend, staying on local mock data.', err);
       });
+  }, []);
+
+  // CHANGE: Wave 0 continuation -- same real-persistence pattern as Inbox,
+  // now for Records/Decisions/Outcomes. Each falls back to its own mock
+  // array if the backend is unreachable or empty, same safety net as Inbox.
+  useEffect(() => {
+    fetch(`${API_BASE}/api/records`)
+      .then((r) => r.json())
+      .then((items: IntelligenceRecord[]) => {
+        if (items.length > 0) {
+          setRecords(items);
+          setActiveRecordId(items[0].id);
+        }
+      })
+      .catch((err) => console.error('Could not reach the records endpoint, staying on local mock data.', err));
+
+    fetch(`${API_BASE}/api/decisions`)
+      .then((r) => r.json())
+      .then((items: DecisionItem[]) => {
+        if (items.length > 0) setDecisions(items);
+      })
+      .catch((err) => console.error('Could not reach the decisions endpoint, staying on local mock data.', err));
+
+    fetch(`${API_BASE}/api/outcomes`)
+      .then((r) => r.json())
+      .then((items: OutcomeItem[]) => {
+        if (items.length > 0) setOutcomes(items);
+      })
+      .catch((err) => console.error('Could not reach the outcomes endpoint, staying on local mock data.', err));
   }, []);
 
   const pendingInboxCount = inboxItems.filter((i) => i.status === 'pending').length;
@@ -81,17 +110,13 @@ export default function App() {
     if (action === 'promote') {
       const itemToPromote = inboxItems.find((i) => i.id === itemId);
       if (itemToPromote) {
-        // CHANGE: proper INT-0001-style code via the shared helper, not an
-        // ad hoc IMI-REC-2026-0XX string built from array length.
-        const newRecord: IntelligenceRecord = {
-          id: `rec-${Date.now()}`,
-          code: formatRecordCode('INT', records.length + 1),
-          domain: 'iddav-marketing-intelligence',
-          recordType: 'observation',
+        // CHANGE: builds the payload without id/code/timestamps -- the
+        // backend generates the proper INT-0001-style code and fills
+        // sensible defaults (status/learningStrength/verificationStatus),
+        // same pattern already proven for Inbox items.
+        const recordPayload = {
+          recordType: 'observation' as const,
           title: itemToPromote.summary,
-          status: 'under_review',
-          createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
-          updatedAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
           author: itemToPromote.submittedBy,
           authorRole: itemToPromote.submitterRole,
           observation: {
@@ -115,7 +140,7 @@ export default function App() {
               level: 'Medium',
               reason: 'Initial intake interpretation pending structured evaluation.',
             },
-            retrospective: 'decision_time',
+            retrospective: 'decision_time' as const,
             alternativeInterpretations: [],
           },
           linkedEvidence: [],
@@ -123,16 +148,40 @@ export default function App() {
             {
               id: `as-${Date.now()}`,
               text: 'Assumption that the observed pattern reflects genuine broader guest behaviour.',
-              testedStatus: 'untested',
-              impactSeverity: 'medium',
+              testedStatus: 'untested' as const,
+              impactSeverity: 'medium' as const,
             },
           ],
           openQuestions: ['What additional empirical evidence is required before formulating a decision?'],
-          learningStrength: 'provisional',
+          learningStrength: 'provisional' as const,
+          sourceCategory: itemToPromote.sourceCategory,
+          sourceType: itemToPromote.sourceType,
         };
 
-        setRecords([newRecord, ...records]);
-        setActiveRecordId(newRecord.id);
+        fetch(`${API_BASE}/api/records`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(recordPayload),
+        })
+          .then((r) => r.json())
+          .then((created: IntelligenceRecord) => {
+            setRecords((prev) => [created, ...prev]);
+            setActiveRecordId(created.id);
+          })
+          .catch((err) => {
+            console.error('Could not save the promoted record to the backend, keeping it local-only for now.', err);
+            const newRecord: IntelligenceRecord = {
+              id: `rec-${Date.now()}`,
+              code: formatRecordCode('INT', records.length + 1),
+              domain: 'iddav-marketing-intelligence',
+              status: 'under_review',
+              createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
+              updatedAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
+              ...recordPayload,
+            } as IntelligenceRecord;
+            setRecords((prev) => [newRecord, ...prev]);
+            setActiveRecordId(newRecord.id);
+          });
 
         setInboxItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, status: 'promoted' } : it)));
       }
@@ -176,6 +225,13 @@ export default function App() {
   };
 
   const handleApproveDecision = (decisionId: string, approverName: string) => {
+    const approvedAt = new Date().toISOString().split('T')[0];
+    fetch(`${API_BASE}/api/decisions/${decisionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approvalStatus: 'approved', approvedBy: approverName, approvedAt }),
+    }).catch((err) => console.error('Could not persist this approval to the backend.', err));
+
     setDecisions((prev) =>
       prev.map((d) => {
         if (d.id !== decisionId) return d;
@@ -183,13 +239,19 @@ export default function App() {
           ...d,
           approvalStatus: 'approved',
           approvedBy: approverName,
-          approvedAt: new Date().toISOString().split('T')[0],
+          approvedAt,
         };
       })
     );
   };
 
   const handleUpdateRecord = (updatedRecord: IntelligenceRecord) => {
+    fetch(`${API_BASE}/api/records/${updatedRecord.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interpretation: updatedRecord.interpretation, status: updatedRecord.status }),
+    }).catch((err) => console.error('Could not persist this record update to the backend.', err));
+
     setRecords((prev) => prev.map((r) => (r.id === updatedRecord.id ? updatedRecord : r)));
   };
 
