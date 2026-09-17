@@ -43,7 +43,10 @@ export default function App() {
   // local D1-backed Worker, replacing the in-memory mock array. Falls back
   // to the existing mock/local-only behavior if the backend is unreachable,
   // so the app never hard-fails just because wrangler dev isn't running.
-  const API_BASE = 'http://localhost:8787';
+  // CHANGE: per review, environment-aware rather than hardcoded --
+  // set VITE_API_BASE in .env.production before deploying so the built
+  // frontend calls the real deployed Worker instead of localhost.
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8787';
 
   useEffect(() => {
     fetch(`${API_BASE}/api/inbox`)

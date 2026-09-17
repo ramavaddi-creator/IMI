@@ -117,6 +117,9 @@ export interface IntelligenceRecord {
   verificationFlag?: string;
   sourceCategory?: SourceCategory;
   sourceType?: SourceType;
+  evidenceWeight?: EvidenceWeight;
+  commercialRelevance?: CommercialRelevance;
+  verificationStatus?: VerificationStatus;
 }
 
 // CHANGE: field-captured or AI-generated media attached to an inbox item, so a
@@ -198,6 +201,75 @@ export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   FIRST_PARTY_AUDIENCE: 'First-Party Audience',
 };
 
+// CHANGE: per ChatGPT's adversarial review (17 Sep 2026) -- evidenceWeight is
+// PROVENANCE STRENGTH (how much to trust that this record accurately reports
+// what it claims), decoupled from commercialRelevance (how much this record
+// matters to a business decision). The original design conflated these:
+// First-Party-Audience data (likes, saves, watch time) was defaulting to the
+// same "Primary" weight as an actual booking record, which wrongly implies a
+// viral-but-meaningless post is as trustworthy as a real transaction.
+export type EvidenceWeight = 'PRIMARY' | 'HIGH' | 'MEDIUM' | 'SIGNAL_ONLY';
+
+export const EVIDENCE_WEIGHT_LABELS: Record<EvidenceWeight, string> = {
+  PRIMARY: 'Primary',
+  HIGH: 'High',
+  MEDIUM: 'Medium',
+  SIGNAL_ONLY: 'Signal-only',
+};
+
+// CHANGE: separate axis, mainly relevant for First-Party-Audience records --
+// an audience metric can be a perfectly reliable measurement (High
+// evidenceWeight) while still being low commercial significance on its own
+// (e.g. reach without any enquiry or booking attached to it).
+export type CommercialRelevance = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export const COMMERCIAL_RELEVANCE_LABELS: Record<CommercialRelevance, string> = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+};
+
+// CHANGE: per ChatGPT's review -- promotion into an IntelligenceRecord and
+// fact-verification are conceptually different and must not be conflated.
+// Something can be promoted (useful enough to act on) while still being
+// Unverified, Corroborated, Verified, Disputed, or Rejected. "Disputed" is a
+// genuinely new state: a claim later contradicted by other evidence is not
+// the same as one nobody has looked at yet.
+export type VerificationStatus = 'unverified' | 'corroborated' | 'verified' | 'disputed' | 'rejected';
+
+export const VERIFICATION_STATUS_LABELS: Record<VerificationStatus, string> = {
+  unverified: 'Unverified',
+  corroborated: 'Corroborated',
+  verified: 'Verified',
+  disputed: 'Disputed',
+  rejected: 'Rejected',
+};
+
+// CHANGE: corrected default mapping -- First-Party-Audience now defaults to
+// HIGH, not PRIMARY. Only genuine primary-evidence-of-a-real-world-event
+// source types (an actual booking, an actual photograph, an actual enquiry)
+// default to PRIMARY. This is a starting suggestion, not a locked value --
+// the field stays editable per record.
+export function defaultEvidenceWeight(sourceType: SourceType | undefined): EvidenceWeight | undefined {
+  if (!sourceType) return undefined;
+  switch (sourceType) {
+    case 'PRIMARY_EVIDENCE':
+    case 'FIRST_PARTY_COMMERCIAL':
+      return 'PRIMARY';
+    case 'FIRST_PARTY_AUDIENCE':
+    case 'OFFICIAL':
+      return 'HIGH';
+    case 'SCIENTIFIC':
+    case 'MARKET':
+    case 'MEDIA':
+      return 'MEDIUM';
+    case 'SOCIAL':
+      return 'SIGNAL_ONLY';
+    default:
+      return undefined;
+  }
+}
+
 export interface InboxItem {
   id: string;
   code: string; // CHANGE: now INB-0001 style
@@ -216,6 +288,16 @@ export interface InboxItem {
   attachments?: MediaAttachment[];
   sourceCategory?: SourceCategory;
   sourceType?: SourceType;
+  evidenceWeight?: EvidenceWeight;
+  commercialRelevance?: CommercialRelevance;
+  // CHANGE: independent of `status` above, which tracks triage/pipeline
+  // stage (pending/promoted/archived/ignored). verificationStatus tracks
+  // fact-checking state and persists across promotion rather than being
+  // reset or conflated with it. `status`'s existing 'verified' value is
+  // kept for now to avoid breaking the current triage UI/backend in the
+  // same change -- migrating triage fully onto verificationStatus is a
+  // follow-up, not done in this pass.
+  verificationStatus?: VerificationStatus;
 }
 
 export type DecisionOptionId = 'publish' | 'do_not_publish' | 'wait' | 'investigate' | 'communicate_privately';
