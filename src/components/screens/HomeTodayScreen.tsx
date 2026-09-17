@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ItemType, ConfidenceLevel, EvidenceOrigin, RetrospectiveType, InboxItem, UserRole, ActiveScreen, MediaAttachment, SourceCategory, SourceType } from '../../types';
 import { SOURCE_CATEGORY_LABELS, SOURCE_TYPE_LABELS } from '../../types';
 import { MediaAttachmentPicker } from '../common/MediaAttachmentPicker';
@@ -93,7 +93,7 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
   const [sourceType, setSourceType] = useState<SourceType | ''>('');
   const [pullQuery, setPullQuery] = useState('Panthera tigris Tadoba');
   const [pullResults, setPullResults] = useState<{ id: string; summary: string; fullText: string; sourceUrl: string; dateStr: string; category: SourceCategory; sourceType: SourceType }[]>([]);
-  const [pullLoading, setPullLoading] = useState<'' | 'gbif' | 'openalex' | 'crossref' | 'ebird' | 'firms'>('');
+  const [pullLoading, setPullLoading] = useState<'' | 'gbif' | 'openalex' | 'crossref' | 'ebird' | 'firms' | 'inaturalist' | 'semanticscholar' | 'feed'>('');
   const [pullError, setPullError] = useState('');
   const [apiKeys, setApiKeys] = useState(() => loadApiKeys());
 
@@ -106,154 +106,158 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
     }
   };
 
-  // CHANGE: these three are the only sources from the identified Source Registry
-  // with a real, free, CORS-friendly public API callable directly from a browser
-  // with no backend. Everything else in the registry stays manual by nature.
-  const pullFromGbif = async () => {
-    setPullLoading('gbif');
-    setPullError('');
-    try {
-      const res = await fetch(`https://api.gbif.org/v1/occurrence/search?scientificName=${encodeURIComponent(pullQuery)}&limit=8`);
-      if (!res.ok) throw new Error(`GBIF returned ${res.status}`);
-      const data = await res.json();
-      const mapped = (data.results || []).map((r: any) => ({
-        id: `gbif-${r.key}`,
-        summary: `${r.scientificName || pullQuery} occurrence recorded ${r.eventDate ? String(r.eventDate).slice(0, 10) : 'date unknown'}${r.locality ? ' near ' + r.locality : r.country ? ' in ' + r.country : ''}.`,
-        fullText: `GBIF occurrence record. Species: ${r.scientificName || 'unknown'}. Country: ${r.country || 'unknown'}. Locality: ${r.locality || 'not specified'}. Recorded by: ${r.recordedBy || 'unknown'}. Basis of record: ${r.basisOfRecord || 'unknown'}.`,
-        sourceUrl: `https://www.gbif.org/occurrence/${r.key}`,
-        dateStr: r.eventDate ? String(r.eventDate).slice(0, 10) : '',
-        category: 'B_global_biodiversity' as SourceCategory,
-        sourceType: 'SCIENTIFIC' as SourceType,
-      }));
-      setPullResults((prev) => [...mapped, ...prev]);
-    } catch (err: any) {
-      setPullError(`GBIF pull failed: ${err.message || 'network or CORS error'}. Check this source manually instead.`);
-    } finally {
-      setPullLoading('');
-    }
+  // CHANGE: converted from five separate "click to pull" buttons into a
+  // single auto-refreshing feed, per explicit direction. Five sources need
+  // no key at all; eBird and NASA FIRMS need a personal key, so they're only
+  // included once a key is actually saved. Everything else in the registry
+  // stays manual by nature -- nothing here runs while the tab is closed.
+  const fetchGbif = async (query: string) => {
+    const res = await fetch(`https://api.gbif.org/v1/occurrence/search?scientificName=${encodeURIComponent(query)}&limit=6`);
+    if (!res.ok) throw new Error(`GBIF returned ${res.status}`);
+    const data = await res.json();
+    return (data.results || []).map((r: any) => ({
+      id: `gbif-${r.key}`,
+      summary: `${r.scientificName || query} occurrence recorded ${r.eventDate ? String(r.eventDate).slice(0, 10) : 'date unknown'}${r.locality ? ' near ' + r.locality : r.country ? ' in ' + r.country : ''}.`,
+      fullText: `GBIF occurrence record. Species: ${r.scientificName || 'unknown'}. Country: ${r.country || 'unknown'}. Locality: ${r.locality || 'not specified'}. Recorded by: ${r.recordedBy || 'unknown'}. Basis of record: ${r.basisOfRecord || 'unknown'}.`,
+      sourceUrl: `https://www.gbif.org/occurrence/${r.key}`,
+      dateStr: r.eventDate ? String(r.eventDate).slice(0, 10) : '',
+      category: 'B_global_biodiversity' as SourceCategory,
+      sourceType: 'SCIENTIFIC' as SourceType,
+    }));
   };
 
-  const pullFromOpenAlex = async () => {
-    setPullLoading('openalex');
-    setPullError('');
-    try {
-      const res = await fetch(`https://api.openalex.org/works?search=${encodeURIComponent(pullQuery)}&per-page=8`);
-      if (!res.ok) throw new Error(`OpenAlex returned ${res.status}`);
-      const data = await res.json();
-      const mapped = (data.results || []).map((w: any) => ({
-        id: `openalex-${w.id}`,
-        summary: w.title || 'Untitled research work',
-        fullText: `${w.title || 'Untitled'} (${w.publication_year || 'year unknown'}). Authors: ${(w.authorships || []).map((a: any) => a.author?.display_name).filter(Boolean).join(', ') || 'unknown'}. Cited by: ${w.cited_by_count ?? 'unknown'}.`,
-        sourceUrl: w.doi || w.id,
-        dateStr: w.publication_year ? String(w.publication_year) : '',
-        category: 'C_scientific_research' as SourceCategory,
-        sourceType: 'SCIENTIFIC' as SourceType,
-      }));
-      setPullResults((prev) => [...mapped, ...prev]);
-    } catch (err: any) {
-      setPullError(`OpenAlex pull failed: ${err.message || 'network or CORS error'}.`);
-    } finally {
-      setPullLoading('');
-    }
+  const fetchOpenAlex = async (query: string) => {
+    const res = await fetch(`https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=6`);
+    if (!res.ok) throw new Error(`OpenAlex returned ${res.status}`);
+    const data = await res.json();
+    return (data.results || []).map((w: any) => ({
+      id: `openalex-${w.id}`,
+      summary: w.title || 'Untitled research work',
+      fullText: `${w.title || 'Untitled'} (${w.publication_year || 'year unknown'}). Authors: ${(w.authorships || []).map((a: any) => a.author?.display_name).filter(Boolean).join(', ') || 'unknown'}. Cited by: ${w.cited_by_count ?? 'unknown'}.`,
+      sourceUrl: w.doi || w.id,
+      dateStr: w.publication_year ? String(w.publication_year) : '',
+      category: 'C_scientific_research' as SourceCategory,
+      sourceType: 'SCIENTIFIC' as SourceType,
+    }));
   };
 
-  const pullFromCrossref = async () => {
-    setPullLoading('crossref');
-    setPullError('');
-    try {
-      const res = await fetch(`https://api.crossref.org/works?query=${encodeURIComponent(pullQuery)}&rows=8`);
-      if (!res.ok) throw new Error(`Crossref returned ${res.status}`);
-      const data = await res.json();
-      const items = data.message?.items || [];
-      const mapped = items.map((w: any) => ({
-        id: `crossref-${w.DOI}`,
-        summary: (w.title && w.title[0]) || 'Untitled research work',
-        fullText: `${(w.title && w.title[0]) || 'Untitled'}. Authors: ${(w.author || []).map((a: any) => `${a.given || ''} ${a.family || ''}`.trim()).join(', ') || 'unknown'}. Journal: ${(w['container-title'] && w['container-title'][0]) || 'unknown'}.`,
-        sourceUrl: `https://doi.org/${w.DOI}`,
-        dateStr: w.published?.['date-parts']?.[0]?.join('-') || '',
-        category: 'C_scientific_research' as SourceCategory,
-        sourceType: 'SCIENTIFIC' as SourceType,
-      }));
-      setPullResults((prev) => [...mapped, ...prev]);
-    } catch (err: any) {
-      setPullError(`Crossref pull failed: ${err.message || 'network or CORS error'}.`);
-    } finally {
-      setPullLoading('');
-    }
+  const fetchCrossref = async (query: string) => {
+    const res = await fetch(`https://api.crossref.org/works?query=${encodeURIComponent(query)}&rows=6`);
+    if (!res.ok) throw new Error(`Crossref returned ${res.status}`);
+    const data = await res.json();
+    const items = data.message?.items || [];
+    return items.map((w: any) => ({
+      id: `crossref-${w.DOI}`,
+      summary: (w.title && w.title[0]) || 'Untitled research work',
+      fullText: `${(w.title && w.title[0]) || 'Untitled'}. Authors: ${(w.author || []).map((a: any) => `${a.given || ''} ${a.family || ''}`.trim()).join(', ') || 'unknown'}. Journal: ${(w['container-title'] && w['container-title'][0]) || 'unknown'}.`,
+      sourceUrl: `https://doi.org/${w.DOI}`,
+      dateStr: w.published?.['date-parts']?.[0]?.join('-') || '',
+      category: 'C_scientific_research' as SourceCategory,
+      sourceType: 'SCIENTIFIC' as SourceType,
+    }));
   };
 
-  const pullFromEbird = async () => {
-    if (!apiKeys.ebird.trim()) {
-      setPullError('eBird needs a free API key — get one at ebird.org/api/keygen and paste it below.');
-      return;
-    }
-    setPullLoading('ebird');
-    setPullError('');
-    try {
-      // Tadoba Andhari Tiger Reserve approximate coordinates, 50km radius
-      const res = await fetch('https://api.ebird.org/v2/data/obs/geo/recent?lat=20.2167&lng=79.3667&dist=50', {
-        headers: { 'X-eBirdApiToken': apiKeys.ebird.trim() },
-      });
-      if (!res.ok) throw new Error(`eBird returned ${res.status}`);
-      const data = await res.json();
-      const mapped = (data || []).slice(0, 8).map((o: any) => ({
-        id: `ebird-${o.subId}-${o.speciesCode}`,
-        summary: `${o.comName} observed ${o.obsDt} near ${o.locName || 'the Tadoba area'}${o.howMany ? ` (count: ${o.howMany})` : ''}.`,
-        fullText: `eBird observation. Species: ${o.comName} (${o.sciName}). Location: ${o.locName || 'unnamed'}. Date: ${o.obsDt}. Count: ${o.howMany ?? 'not counted'}.`,
-        sourceUrl: `https://ebird.org/species/${o.speciesCode}`,
-        dateStr: o.obsDt || '',
-        category: 'B_global_biodiversity' as SourceCategory,
-        sourceType: 'SCIENTIFIC' as SourceType,
-      }));
-      setPullResults((prev) => [...mapped, ...prev]);
-    } catch (err: any) {
-      setPullError(`eBird pull failed: ${err.message || 'network or CORS error, or an invalid key'}.`);
-    } finally {
-      setPullLoading('');
-    }
+  // CHANGE: new -- confirmed keyless, open-CORS read-only API (verified 17 Sep 2026).
+  const fetchInaturalist = async (query: string) => {
+    const res = await fetch(`https://api.inaturalist.org/v1/observations?q=${encodeURIComponent(query)}&per_page=6&order=desc&order_by=observed_on`);
+    if (!res.ok) throw new Error(`iNaturalist returned ${res.status}`);
+    const data = await res.json();
+    return (data.results || []).map((o: any) => ({
+      id: `inat-${o.id}`,
+      summary: `${o.taxon?.preferred_common_name || o.taxon?.name || o.species_guess || 'Unidentified species'} observed ${o.observed_on || 'date unknown'}${o.place_guess ? ' near ' + o.place_guess : ''}.`,
+      fullText: `iNaturalist observation. Species: ${o.taxon?.name || o.species_guess || 'unidentified'}. Common name: ${o.taxon?.preferred_common_name || 'unknown'}. Place: ${o.place_guess || 'unspecified'}. Quality grade: ${o.quality_grade || 'unknown'}.`,
+      sourceUrl: o.uri || `https://www.inaturalist.org/observations/${o.id}`,
+      dateStr: o.observed_on || '',
+      category: 'B_global_biodiversity' as SourceCategory,
+      sourceType: 'SCIENTIFIC' as SourceType,
+    }));
   };
 
-  const pullFromFirms = async () => {
-    if (!apiKeys.firms.trim()) {
-      setPullError('NASA FIRMS needs a free MAP_KEY — get one at firms.modaps.eosdis.nasa.gov/api/map_key and paste it below.');
-      return;
-    }
-    setPullLoading('firms');
+  // CHANGE: new -- confirmed keyless access, though on a more heavily
+  // rate-limited shared pool than GBIF/OpenAlex/Crossref (verified 17 Sep 2026).
+  const fetchSemanticScholar = async (query: string) => {
+    const res = await fetch(`https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=6&fields=title,year,authors,externalIds,citationCount`);
+    if (!res.ok) throw new Error(`Semantic Scholar returned ${res.status}`);
+    const data = await res.json();
+    return (data.data || []).map((w: any) => ({
+      id: `semscholar-${w.paperId}`,
+      summary: w.title || 'Untitled research work',
+      fullText: `${w.title || 'Untitled'} (${w.year || 'year unknown'}). Authors: ${(w.authors || []).map((a: any) => a.name).join(', ') || 'unknown'}. Cited by: ${w.citationCount ?? 'unknown'}.`,
+      sourceUrl: w.externalIds?.DOI ? `https://doi.org/${w.externalIds.DOI}` : `https://www.semanticscholar.org/paper/${w.paperId}`,
+      dateStr: w.year ? String(w.year) : '',
+      category: 'C_scientific_research' as SourceCategory,
+      sourceType: 'SCIENTIFIC' as SourceType,
+    }));
+  };
+
+  const fetchEbird = async () => {
+    const res = await fetch('https://api.ebird.org/v2/data/obs/geo/recent?lat=20.2167&lng=79.3667&dist=50', {
+      headers: { 'X-eBirdApiToken': apiKeys.ebird.trim() },
+    });
+    if (!res.ok) throw new Error(`eBird returned ${res.status}`);
+    const data = await res.json();
+    return (data || []).slice(0, 6).map((o: any) => ({
+      id: `ebird-${o.subId}-${o.speciesCode}`,
+      summary: `${o.comName} observed ${o.obsDt} near ${o.locName || 'the Tadoba area'}${o.howMany ? ` (count: ${o.howMany})` : ''}.`,
+      fullText: `eBird observation. Species: ${o.comName} (${o.sciName}). Location: ${o.locName || 'unnamed'}. Date: ${o.obsDt}. Count: ${o.howMany ?? 'not counted'}.`,
+      sourceUrl: `https://ebird.org/species/${o.speciesCode}`,
+      dateStr: o.obsDt || '',
+      category: 'B_global_biodiversity' as SourceCategory,
+      sourceType: 'SCIENTIFIC' as SourceType,
+    }));
+  };
+
+  const fetchFirms = async () => {
+    const bbox = '79.0,19.8,79.7,20.6';
+    const res = await fetch(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/${apiKeys.firms.trim()}/VIIRS_SNPP_NRT/${bbox}/1`);
+    if (!res.ok) throw new Error(`NASA FIRMS returned ${res.status}`);
+    const csvText = await res.text();
+    const lines = csvText.trim().split('\n');
+    if (lines.length < 2) return [];
+    const header = lines[0].split(',');
+    const latIdx = header.indexOf('latitude');
+    const lonIdx = header.indexOf('longitude');
+    const dateIdx = header.indexOf('acq_date');
+    const confIdx = header.indexOf('confidence');
+    return lines.slice(1, 7).map((line, i) => {
+      const cols = line.split(',');
+      return {
+        id: `firms-${i}-${cols[dateIdx]}`,
+        summary: `Fire hotspot detected near Tadoba (${cols[latIdx]}, ${cols[lonIdx]}) on ${cols[dateIdx]}, confidence ${cols[confIdx] || 'unknown'}.`,
+        fullText: `NASA FIRMS VIIRS fire detection. Coordinates: ${cols[latIdx]}, ${cols[lonIdx]}. Date: ${cols[dateIdx]}. Confidence: ${cols[confIdx] || 'unknown'}.`,
+        sourceUrl: 'https://firms.modaps.eosdis.nasa.gov/map/',
+        dateStr: cols[dateIdx] || '',
+        category: 'E_satellite_landscape' as SourceCategory,
+        sourceType: 'OFFICIAL' as SourceType,
+      };
+    });
+  };
+
+  // CHANGE: single combined feed refresh. Runs on mount, when a Suggested
+  // Topic is picked, on Enter in the search box, or via the manual Refresh
+  // button -- never on a schedule, since nothing here can run while the tab
+  // is closed. Each source's own error is isolated so one failing source
+  // never blanks the rest of the feed.
+  const refreshFeed = async (query: string) => {
+    setPullLoading('feed');
     setPullError('');
-    try {
-      // Bounding box roughly covering Tadoba Andhari Tiger Reserve: west,south,east,north
-      const bbox = '79.0,19.8,79.7,20.6';
-      const res = await fetch(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/${apiKeys.firms.trim()}/VIIRS_SNPP_NRT/${bbox}/1`);
-      if (!res.ok) throw new Error(`NASA FIRMS returned ${res.status}`);
-      const csvText = await res.text();
-      const lines = csvText.trim().split('\n');
-      if (lines.length < 2) {
-        setPullError('NASA FIRMS returned no fire detections for the Tadoba area in the last day — itself worth noting as a quiet-period observation if relevant.');
-      } else {
-        const header = lines[0].split(',');
-        const latIdx = header.indexOf('latitude');
-        const lonIdx = header.indexOf('longitude');
-        const dateIdx = header.indexOf('acq_date');
-        const confIdx = header.indexOf('confidence');
-        const mapped = lines.slice(1, 9).map((line, i) => {
-          const cols = line.split(',');
-          return {
-            id: `firms-${i}-${cols[dateIdx]}`,
-            summary: `Fire hotspot detected near Tadoba (${cols[latIdx]}, ${cols[lonIdx]}) on ${cols[dateIdx]}, confidence ${cols[confIdx] || 'unknown'}.`,
-            fullText: `NASA FIRMS VIIRS fire detection. Coordinates: ${cols[latIdx]}, ${cols[lonIdx]}. Date: ${cols[dateIdx]}. Confidence: ${cols[confIdx] || 'unknown'}.`,
-            sourceUrl: 'https://firms.modaps.eosdis.nasa.gov/map/',
-            dateStr: cols[dateIdx] || '',
-            category: 'E_satellite_landscape' as SourceCategory,
-            sourceType: 'OFFICIAL' as SourceType,
-          };
-        });
-        setPullResults((prev) => [...mapped, ...prev]);
-      }
-    } catch (err: any) {
-      setPullError(`NASA FIRMS pull failed: ${err.message || 'network or CORS error, or an invalid key'}.`);
-    } finally {
-      setPullLoading('');
-    }
+    const errors: string[] = [];
+    const tasks: Promise<any[]>[] = [
+      fetchGbif(query).catch((e: any) => { errors.push(`GBIF: ${e.message}`); return []; }),
+      fetchOpenAlex(query).catch((e: any) => { errors.push(`OpenAlex: ${e.message}`); return []; }),
+      fetchCrossref(query).catch((e: any) => { errors.push(`Crossref: ${e.message}`); return []; }),
+      fetchInaturalist(query).catch((e: any) => { errors.push(`iNaturalist: ${e.message}`); return []; }),
+      fetchSemanticScholar(query).catch((e: any) => { errors.push(`Semantic Scholar: ${e.message}`); return []; }),
+    ];
+    if (apiKeys.ebird.trim()) tasks.push(fetchEbird().catch((e: any) => { errors.push(`eBird: ${e.message}`); return []; }));
+    if (apiKeys.firms.trim()) tasks.push(fetchFirms().catch((e: any) => { errors.push(`NASA FIRMS: ${e.message}`); return []; }));
+
+    const allResults = await Promise.all(tasks);
+    const combined = allResults.flat();
+    combined.sort((a, b) => (b.dateStr || '').localeCompare(a.dateStr || ''));
+    setPullResults(combined);
+    if (errors.length > 0) setPullError(errors.join(' \u2014 '));
+    setPullLoading('');
   };
 
   const addPulledToInbox = (candidate: { id: string; summary: string; fullText: string; sourceUrl: string; category: SourceCategory; sourceType: SourceType }) => {
@@ -274,6 +278,11 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
     });
     setPullResults((prev) => prev.filter((c) => c.id !== candidate.id));
   };
+
+  useEffect(() => {
+    refreshFeed(pullQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [recurringChecks, setRecurringChecks] = useState<RecurringCheckState>(() => loadRecurringChecks());
 
@@ -498,7 +507,12 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
         </div>
 
         <div className="border border-zinc-300 bg-zinc-50 rounded p-3.5 space-y-3 mb-4">
-          <span className="text-[11px] font-mono uppercase text-zinc-600 block">Pull Live Data (Real APIs — no AI involved)</span>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-[11px] font-mono uppercase text-zinc-600 block">Live Intelligence Feed (auto-refreshing, real APIs \u2014 no AI involved)</span>
+            <span className="text-[10px] font-mono text-zinc-500">
+              {5 + (apiKeys.ebird.trim() ? 1 : 0) + (apiKeys.firms.trim() ? 1 : 0)} sources connected
+            </span>
+          </div>
           <div>
             <label className="block text-[10px] font-mono uppercase text-zinc-500 mb-1">
               Suggested Topics (what Iddav WildStay stands for)
@@ -506,7 +520,11 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
             <select
               defaultValue=""
               onChange={(e) => {
-                if (e.target.value) setPullQuery(e.target.value);
+                const val = e.target.value;
+                if (val) {
+                  setPullQuery(val);
+                  refreshFeed(val);
+                }
                 e.target.value = '';
               }}
               className="w-full p-2 text-xs font-mono border border-zinc-300 rounded bg-white text-zinc-900 mb-2"
@@ -524,26 +542,18 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
             type="text"
             value={pullQuery}
             onChange={(e) => setPullQuery(e.target.value)}
-            placeholder="Search term, e.g. Panthera tigris Tadoba"
+            onKeyDown={(e) => { if (e.key === 'Enter') refreshFeed(pullQuery); }}
+            placeholder="Search term, then press Enter \u2014 e.g. Panthera tigris Tadoba"
             className="w-full p-2 text-xs font-mono border border-zinc-300 rounded bg-white text-zinc-900"
           />
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={pullFromGbif} disabled={pullLoading !== ''} className="px-2.5 py-1.5 text-xs font-mono border border-zinc-300 rounded bg-white hover:bg-zinc-100 disabled:opacity-50">
-              {pullLoading === 'gbif' ? 'Pulling GBIF...' : 'Pull GBIF (Biodiversity)'}
-            </button>
-            <button type="button" onClick={pullFromOpenAlex} disabled={pullLoading !== ''} className="px-2.5 py-1.5 text-xs font-mono border border-zinc-300 rounded bg-white hover:bg-zinc-100 disabled:opacity-50">
-              {pullLoading === 'openalex' ? 'Pulling OpenAlex...' : 'Pull OpenAlex (Research)'}
-            </button>
-            <button type="button" onClick={pullFromCrossref} disabled={pullLoading !== ''} className="px-2.5 py-1.5 text-xs font-mono border border-zinc-300 rounded bg-white hover:bg-zinc-100 disabled:opacity-50">
-              {pullLoading === 'crossref' ? 'Pulling Crossref...' : 'Pull Crossref (Research)'}
-            </button>
-            <button type="button" onClick={pullFromEbird} disabled={pullLoading !== ''} className="px-2.5 py-1.5 text-xs font-mono border border-zinc-300 rounded bg-white hover:bg-zinc-100 disabled:opacity-50">
-              {pullLoading === 'ebird' ? 'Pulling eBird...' : 'Pull eBird (Birds)'}
-            </button>
-            <button type="button" onClick={pullFromFirms} disabled={pullLoading !== ''} className="px-2.5 py-1.5 text-xs font-mono border border-zinc-300 rounded bg-white hover:bg-zinc-100 disabled:opacity-50">
-              {pullLoading === 'firms' ? 'Pulling NASA FIRMS...' : 'Pull NASA FIRMS (Fire)'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => refreshFeed(pullQuery)}
+            disabled={pullLoading !== ''}
+            className="px-3 py-1.5 text-xs font-mono font-bold uppercase rounded bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50"
+          >
+            {pullLoading === 'feed' ? 'Refreshing Feed...' : 'Refresh Feed'}
+          </button>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input
