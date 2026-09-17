@@ -47,9 +47,15 @@ export default function App() {
   // set VITE_API_BASE in .env.production before deploying so the built
   // frontend calls the real deployed Worker instead of localhost.
   const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8787';
+  // CHANGE: shared-secret auth header, sent on every request. Empty string
+  // locally is fine -- the local Worker's own API_SECRET is unset in dev,
+  // so an empty/missing key is expected and accepted there; production
+  // requires both sides to actually match.
+  const API_KEY = import.meta.env.VITE_API_KEY || '';
+  const authHeaders = { 'Content-Type': 'application/json', 'X-API-Key': API_KEY };
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/inbox`)
+    fetch(`${API_BASE}/api/inbox`, { headers: authHeaders })
       .then((r) => r.json())
       .then((items: InboxItem[]) => setInboxItems(items))
       .catch((err) => {
@@ -61,7 +67,7 @@ export default function App() {
   // now for Records/Decisions/Outcomes. Each falls back to its own mock
   // array if the backend is unreachable or empty, same safety net as Inbox.
   useEffect(() => {
-    fetch(`${API_BASE}/api/records`)
+    fetch(`${API_BASE}/api/records`, { headers: authHeaders })
       .then((r) => r.json())
       .then((items: IntelligenceRecord[]) => {
         if (items.length > 0) {
@@ -71,14 +77,14 @@ export default function App() {
       })
       .catch((err) => console.error('Could not reach the records endpoint, staying on local mock data.', err));
 
-    fetch(`${API_BASE}/api/decisions`)
+    fetch(`${API_BASE}/api/decisions`, { headers: authHeaders })
       .then((r) => r.json())
       .then((items: DecisionItem[]) => {
         if (items.length > 0) setDecisions(items);
       })
       .catch((err) => console.error('Could not reach the decisions endpoint, staying on local mock data.', err));
 
-    fetch(`${API_BASE}/api/outcomes`)
+    fetch(`${API_BASE}/api/outcomes`, { headers: authHeaders })
       .then((r) => r.json())
       .then((items: OutcomeItem[]) => {
         if (items.length > 0) setOutcomes(items);
@@ -103,7 +109,7 @@ export default function App() {
     };
     fetch(`${API_BASE}/api/inbox/${itemId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({ status: statusMap[action] }),
     }).catch((err) => console.error('Could not persist this triage action to the backend.', err));
 
@@ -160,7 +166,7 @@ export default function App() {
 
         fetch(`${API_BASE}/api/records`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify(recordPayload),
         })
           .then((r) => r.json())
@@ -202,7 +208,7 @@ export default function App() {
   const handleAddItemToInbox = (newItemData: Omit<InboxItem, 'id' | 'code' | 'domain'>) => {
     fetch(`${API_BASE}/api/inbox`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify(newItemData),
     })
       .then((r) => r.json())
@@ -228,7 +234,7 @@ export default function App() {
     const approvedAt = new Date().toISOString().split('T')[0];
     fetch(`${API_BASE}/api/decisions/${decisionId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({ approvalStatus: 'approved', approvedBy: approverName, approvedAt }),
     }).catch((err) => console.error('Could not persist this approval to the backend.', err));
 
@@ -248,7 +254,7 @@ export default function App() {
   const handleUpdateRecord = (updatedRecord: IntelligenceRecord) => {
     fetch(`${API_BASE}/api/records/${updatedRecord.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({ interpretation: updatedRecord.interpretation, status: updatedRecord.status }),
     }).catch((err) => console.error('Could not persist this record update to the backend.', err));
 

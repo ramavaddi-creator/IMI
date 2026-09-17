@@ -177,23 +177,6 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
     }));
   };
 
-  // CHANGE: new -- confirmed keyless access, though on a more heavily
-  // rate-limited shared pool than GBIF/OpenAlex/Crossref (verified 17 Sep 2026).
-  const fetchSemanticScholar = async (query: string) => {
-    const res = await fetch(`https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=6&fields=title,year,authors,externalIds,citationCount`);
-    if (!res.ok) throw new Error(`Semantic Scholar returned ${res.status}`);
-    const data = await res.json();
-    return (data.data || []).map((w: any) => ({
-      id: `semscholar-${w.paperId}`,
-      summary: w.title || 'Untitled research work',
-      fullText: `${w.title || 'Untitled'} (${w.year || 'year unknown'}). Authors: ${(w.authors || []).map((a: any) => a.name).join(', ') || 'unknown'}. Cited by: ${w.citationCount ?? 'unknown'}.`,
-      sourceUrl: w.externalIds?.DOI ? `https://doi.org/${w.externalIds.DOI}` : `https://www.semanticscholar.org/paper/${w.paperId}`,
-      dateStr: w.year ? String(w.year) : '',
-      category: 'C_scientific_research' as SourceCategory,
-      sourceType: 'SCIENTIFIC' as SourceType,
-    }));
-  };
-
   const fetchEbird = async () => {
     const res = await fetch('https://api.ebird.org/v2/data/obs/geo/recent?lat=20.2167&lng=79.3667&dist=50', {
       headers: { 'X-eBirdApiToken': apiKeys.ebird.trim() },
