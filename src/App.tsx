@@ -100,11 +100,24 @@ export default function App() {
     (o) => o.resultingLearning.learningStrength === 'provisional' || o.resultingLearning.learningStrength === 'repeated'
   ).length;
 
-  const handleTriageAction = (itemId: string, action: 'ignore' | 'archive' | 'verify' | 'promote') => {
-    const statusMap: Record<'ignore' | 'archive' | 'verify' | 'promote', string> = {
+  const handleTriageAction = (itemId: string, action: 'ignore' | 'archive' | 'verify' | 'dispute' | 'promote') => {
+    // CHANGE: verify/dispute now set verificationStatus, fully independent
+    // of the workflow `status` field below -- Promoted+Unverified,
+    // Promoted+Disputed, etc. are all legitimate combinations now.
+    if (action === 'verify' || action === 'dispute') {
+      const verificationStatus = action === 'verify' ? 'verified' : 'disputed';
+      fetch(`${API_BASE}/api/inbox/${itemId}`, {
+        method: 'PATCH',
+        headers: authHeaders,
+        body: JSON.stringify({ verificationStatus }),
+      }).catch((err) => console.error('Could not persist this verification change to the backend.', err));
+      setInboxItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, verificationStatus } : it)));
+      return;
+    }
+
+    const statusMap: Record<'ignore' | 'archive' | 'promote', string> = {
       ignore: 'ignored',
       archive: 'archived',
-      verify: 'verified',
       promote: 'promoted',
     };
     fetch(`${API_BASE}/api/inbox/${itemId}`, {
@@ -197,7 +210,6 @@ export default function App() {
     setInboxItems((prev) =>
       prev.map((it) => {
         if (it.id !== itemId) return it;
-        if (action === 'verify') return { ...it, status: 'verified' };
         if (action === 'archive') return { ...it, status: 'archived' };
         if (action === 'ignore') return { ...it, status: 'ignored' };
         return it;

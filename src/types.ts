@@ -282,7 +282,9 @@ export interface InboxItem {
   submitterRole: UserRole;
   confidence?: ConfidenceRationale;
   retrospective: RetrospectiveType;
-  status: 'pending' | 'verified' | 'promoted' | 'archived' | 'ignored';
+  // CHANGE: 'verified' removed -- status is now purely workflow stage.
+  // Fact-verification lives entirely in verificationStatus below.
+  status: 'pending' | 'promoted' | 'archived' | 'ignored';
   fullText: string;
   sourceReference?: string;
   attachments?: MediaAttachment[];
@@ -292,11 +294,9 @@ export interface InboxItem {
   commercialRelevance?: CommercialRelevance;
   // CHANGE: independent of `status` above, which tracks triage/pipeline
   // stage (pending/promoted/archived/ignored). verificationStatus tracks
-  // fact-checking state and persists across promotion rather than being
-  // reset or conflated with it. `status`'s existing 'verified' value is
-  // kept for now to avoid breaking the current triage UI/backend in the
-  // same change -- migrating triage fully onto verificationStatus is a
-  // follow-up, not done in this pass.
+  // fact-checking state and persists across promotion. The migration this
+  // comment used to defer is now done -- Promoted+Unverified, Promoted+
+  // Disputed, etc. are all legitimate combinations.
   verificationStatus?: VerificationStatus;
 }
 
@@ -333,6 +333,13 @@ export interface DecisionItem {
   selectedOption: DecisionOptionId;
   rationale: string;
   confidence: ConfidenceRationale;
+
+  // CHANGE: per review -- a decision without a stated expectation can only
+  // ever be narrated afterward, never actually tested against its outcome.
+  // Optional because an honest historical reconstruction may not always be
+  // able to recover what was genuinely expected at the time.
+  expectedOutcome?: string;
+  measurementCriteria?: string;
 
   actionsDeliberatelyAvoided: string[];
 

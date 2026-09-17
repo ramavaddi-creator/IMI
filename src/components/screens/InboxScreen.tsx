@@ -61,7 +61,7 @@ function computePriorityScore(item: InboxItem): { score: number; reasons: string
 
 interface InboxScreenProps {
   items: InboxItem[];
-  onTriageAction: (itemId: string, action: 'ignore' | 'archive' | 'verify' | 'promote') => void;
+  onTriageAction: (itemId: string, action: 'ignore' | 'archive' | 'verify' | 'dispute' | 'promote') => void;
   onAddItem: (item: Omit<InboxItem, 'id' | 'code' | 'domain'>) => void;
   onNavigate: (screen: ActiveScreen) => void;
   currentUserRole: UserRole;
@@ -93,7 +93,13 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
 
   const filteredItems = items
     .filter((item) => {
-      if (selectedFilter !== 'all' && item.status !== selectedFilter) return false;
+      // CHANGE: 'verified' now reads verificationStatus, since status no
+      // longer carries that meaning after the workflow/verification split.
+      if (selectedFilter === 'verified') {
+        if (item.verificationStatus !== 'verified') return false;
+      } else if (selectedFilter !== 'all' && item.status !== selectedFilter) {
+        return false;
+      }
       if (typeFilter !== 'all' && item.type !== typeFilter) return false;
       return true;
     })
@@ -259,7 +265,7 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
               <div
                 key={item.id}
                 className={`p-3.5 sm:p-4 rounded border transition-all bg-white shadow-xs ${
-                  hasMissingReason ? 'border-amber-400 ring-1 ring-amber-300' : item.status === 'verified' ? 'border-emerald-300' : 'border-zinc-300'
+                  hasMissingReason ? 'border-amber-400 ring-1 ring-amber-300' : item.verificationStatus === 'verified' ? 'border-emerald-300' : 'border-zinc-300'
                 }`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -375,15 +381,28 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
                     </button>
                     <button
                       onClick={() => onTriageAction(item.id, 'verify')}
-                      disabled={item.status === 'verified'}
+                      disabled={item.verificationStatus === 'verified'}
                       className={`flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium rounded border transition-colors ${
-                        item.status === 'verified'
+                        item.verificationStatus === 'verified'
                           ? 'bg-emerald-50 text-emerald-800 border-emerald-300 opacity-80 cursor-default'
                           : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
                       }`}
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>{item.status === 'verified' ? 'Verified' : 'Verify Fact'}</span>
+                      <span>{item.verificationStatus === 'verified' ? 'Verified' : 'Verify Fact'}</span>
+                    </button>
+                    <button
+                      onClick={() => onTriageAction(item.id, 'dispute')}
+                      disabled={item.verificationStatus === 'disputed'}
+                      className={`flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium rounded border transition-colors ${
+                        item.verificationStatus === 'disputed'
+                          ? 'bg-amber-50 text-amber-800 border-amber-300 opacity-80 cursor-default'
+                          : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-50'
+                      }`}
+                      title="Contradicted by other evidence -- different from simply unverified"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>{item.verificationStatus === 'disputed' ? 'Disputed' : 'Mark Disputed'}</span>
                     </button>
                     <button
                       onClick={() => {
