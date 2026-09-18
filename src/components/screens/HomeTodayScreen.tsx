@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { ItemType, ConfidenceLevel, EvidenceOrigin, RetrospectiveType, InboxItem, UserRole, ActiveScreen, MediaAttachment, SourceCategory, SourceType } from '../../types';
-import { SOURCE_CATEGORY_LABELS, SOURCE_TYPE_LABELS } from '../../types';
+import { SOURCE_CATEGORY_LABELS, SOURCE_TYPE_LABELS, EVIDENCE_WEIGHT_LABELS, COMMERCIAL_RELEVANCE_LABELS, defaultEvidenceWeight } from '../../types';
+import type { EvidenceWeight, CommercialRelevance } from '../../types';
 import { MediaAttachmentPicker } from '../common/MediaAttachmentPicker';
 import { SourceCategoryBadge } from '../common/SourceCategoryBadge';
 import { SourceTypeBadge } from '../common/SourceTypeBadge';
@@ -91,6 +92,11 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
   const [sourceCategory, setSourceCategory] = useState<SourceCategory | ''>('');
   const [sourceType, setSourceType] = useState<SourceType | ''>('');
+  // CHANGE: new -- auto-suggested from sourceType via defaultEvidenceWeight,
+  // always overridable. Untyped string to avoid importing the literal union
+  // type here; validated correctly at the point of use.
+  const [evidenceWeight, setEvidenceWeight] = useState<string>('');
+  const [commercialRelevance, setCommercialRelevance] = useState<string>('');
   const [pullQuery, setPullQuery] = useState('Panthera tigris Tadoba');
   const [pullResults, setPullResults] = useState<{ id: string; summary: string; fullText: string; sourceUrl: string; dateStr: string; category: SourceCategory; sourceType: SourceType }[]>([]);
   const [pullLoading, setPullLoading] = useState<'' | 'gbif' | 'openalex' | 'crossref' | 'ebird' | 'firms' | 'inaturalist' | 'semanticscholar' | 'feed'>('');
@@ -390,6 +396,8 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
       attachments,
       ...(sourceCategory ? { sourceCategory } : {}),
       ...(sourceType ? { sourceType } : {}),
+      ...(evidenceWeight ? { evidenceWeight: evidenceWeight as EvidenceWeight } : {}),
+      ...(commercialRelevance ? { commercialRelevance: commercialRelevance as CommercialRelevance } : {}),
     });
 
     setInputText('');
@@ -397,6 +405,8 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
     setAttachments([]);
     setSourceCategory('');
     setSourceType('');
+    setEvidenceWeight('');
+    setCommercialRelevance('');
     setSubmissionSuccess(true);
     setTimeout(() => setSubmissionSuccess(false), 3500);
   };
@@ -724,7 +734,13 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
               </label>
               <select
                 value={sourceType}
-                onChange={(e) => setSourceType(e.target.value as SourceType | '')}
+                onChange={(e) => {
+                  const val = e.target.value as SourceType | '';
+                  setSourceType(val);
+                  // CHANGE: auto-suggest, not auto-lock -- a starting point the
+                  // person can immediately change below, never a silent default.
+                  setEvidenceWeight(defaultEvidenceWeight(val || undefined) || '');
+                }}
                 className="w-full p-2 text-xs font-mono border border-zinc-300 rounded bg-white text-zinc-900"
               >
                 <option value="">Unspecified</option>
@@ -733,6 +749,36 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
                 ))}
               </select>
               {sourceType && <div className="mt-1.5"><SourceTypeBadge sourceType={sourceType} size="sm" /></div>}
+            </div>
+            <div>
+              <label className="block text-[11px] font-mono uppercase text-zinc-600 mb-1.5">
+                Evidence Weight (how much to trust THIS record specifically)
+              </label>
+              <select
+                value={evidenceWeight}
+                onChange={(e) => setEvidenceWeight(e.target.value)}
+                className="w-full p-2 text-xs font-mono border border-zinc-300 rounded bg-white text-zinc-900"
+              >
+                <option value="">Unspecified</option>
+                {Object.entries(EVIDENCE_WEIGHT_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-mono uppercase text-zinc-600 mb-1.5">
+                Commercial Relevance (how much this matters to a business decision)
+              </label>
+              <select
+                value={commercialRelevance}
+                onChange={(e) => setCommercialRelevance(e.target.value)}
+                className="w-full p-2 text-xs font-mono border border-zinc-300 rounded bg-white text-zinc-900"
+              >
+                <option value="">Unspecified</option>
+                {Object.entries(COMMERCIAL_RELEVANCE_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
             </div>
           </div>
 

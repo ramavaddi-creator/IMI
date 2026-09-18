@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { InboxItem, ItemType, EvidenceOrigin, ConfidenceLevel, RetrospectiveType, UserRole, ActiveScreen, MediaAttachment, SourceCategory, SourceType } from '../../types';
-import { SOURCE_CATEGORY_LABELS, SOURCE_TYPE_LABELS } from '../../types';
+import { SOURCE_CATEGORY_LABELS, SOURCE_TYPE_LABELS, EVIDENCE_WEIGHT_LABELS, COMMERCIAL_RELEVANCE_LABELS, defaultEvidenceWeight } from '../../types';
+import type { EvidenceWeight, CommercialRelevance } from '../../types';
 import { MediaAttachmentPicker } from '../common/MediaAttachmentPicker';
 import { SourceCategoryBadge } from '../common/SourceCategoryBadge';
 import { SourceTypeBadge } from '../common/SourceTypeBadge';
@@ -84,6 +85,8 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
   const [newSourceCategory, setNewSourceCategory] = useState<SourceCategory | ''>('');
   const [newSourceType, setNewSourceType] = useState<SourceType | ''>('');
+  const [newEvidenceWeight, setNewEvidenceWeight] = useState<string>('');
+  const [newCommercialRelevance, setNewCommercialRelevance] = useState<string>('');
   const [copyStatus, setCopyStatus] = useState('');
   const [sortByPriority, setSortByPriority] = useState(false);
 
@@ -132,6 +135,8 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
       attachments,
       ...(newSourceCategory ? { sourceCategory: newSourceCategory } : {}),
       ...(newSourceType ? { sourceType: newSourceType } : {}),
+      ...(newEvidenceWeight ? { evidenceWeight: newEvidenceWeight as EvidenceWeight } : {}),
+      ...(newCommercialRelevance ? { commercialRelevance: newCommercialRelevance as CommercialRelevance } : {}),
     });
 
     setNewSummary('');
@@ -141,6 +146,8 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
     setAttachments([]);
     setNewSourceCategory('');
     setNewSourceType('');
+    setNewEvidenceWeight('');
+    setNewCommercialRelevance('');
     setIsQuickCaptureOpen(false);
   };
 
@@ -315,10 +322,20 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
                   </div>
                 )}
 
-                {(item.sourceCategory || item.sourceType) && (
+                {(item.sourceCategory || item.sourceType || item.evidenceWeight || item.commercialRelevance) && (
                   <div className="mb-3 flex flex-wrap gap-1.5">
                     {item.sourceCategory && <SourceCategoryBadge category={item.sourceCategory} size="sm" />}
                     {item.sourceType && <SourceTypeBadge sourceType={item.sourceType} size="sm" />}
+                    {item.evidenceWeight && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-mono uppercase rounded bg-indigo-50 text-indigo-800 border border-indigo-200">
+                        Weight: {EVIDENCE_WEIGHT_LABELS[item.evidenceWeight]}
+                      </span>
+                    )}
+                    {item.commercialRelevance && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-mono uppercase rounded bg-amber-50 text-amber-800 border border-amber-200">
+                        Relevance: {COMMERCIAL_RELEVANCE_LABELS[item.commercialRelevance]}
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -562,7 +579,11 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
                 </label>
                 <select
                   value={newSourceType}
-                  onChange={(e) => setNewSourceType(e.target.value as SourceType | '')}
+                  onChange={(e) => {
+                    const val = e.target.value as SourceType | '';
+                    setNewSourceType(val);
+                    setNewEvidenceWeight(defaultEvidenceWeight(val || undefined) || '');
+                  }}
                   className="w-full p-2 text-xs font-mono bg-white border border-zinc-300 rounded text-zinc-900"
                 >
                   <option value="">Unspecified</option>
@@ -571,6 +592,36 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
                   ))}
                 </select>
                 {newSourceType && <div className="mt-1.5"><SourceTypeBadge sourceType={newSourceType} size="sm" /></div>}
+              </div>
+              <div>
+                <label className="block text-[11px] font-mono uppercase text-zinc-600 mb-1">
+                  Evidence Weight (how much to trust THIS record specifically)
+                </label>
+                <select
+                  value={newEvidenceWeight}
+                  onChange={(e) => setNewEvidenceWeight(e.target.value)}
+                  className="w-full p-2 text-xs font-mono bg-white border border-zinc-300 rounded text-zinc-900"
+                >
+                  <option value="">Unspecified</option>
+                  {Object.entries(EVIDENCE_WEIGHT_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-mono uppercase text-zinc-600 mb-1">
+                  Commercial Relevance (how much this matters to a business decision)
+                </label>
+                <select
+                  value={newCommercialRelevance}
+                  onChange={(e) => setNewCommercialRelevance(e.target.value)}
+                  className="w-full p-2 text-xs font-mono bg-white border border-zinc-300 rounded text-zinc-900"
+                >
+                  <option value="">Unspecified</option>
+                  {Object.entries(COMMERCIAL_RELEVANCE_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
               </div>
 
               <MediaAttachmentPicker attachments={attachments} onChange={setAttachments} />
