@@ -263,6 +263,33 @@ export default function App() {
     );
   };
 
+  // CHANGE: new -- creates a real DecisionItem, since no UI for this existed
+  // before. Same POST-with-local-fallback pattern as everything else.
+  const handleCreateDecision = (
+    payload: Omit<DecisionItem, 'id' | 'code' | 'domain' | 'approvalStatus' | 'approvedBy' | 'approvedAt' | 'schemaFitNote'>
+  ) => {
+    fetch(`${API_BASE}/api/decisions`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify(payload),
+    })
+      .then((r) => r.json())
+      .then((created: DecisionItem) => {
+        setDecisions((prev) => [created, ...prev]);
+      })
+      .catch((err) => {
+        console.error('Could not save the new decision to the backend, keeping it local-only for now.', err);
+        const newDecision: DecisionItem = {
+          id: `dec-${Date.now()}`,
+          code: formatRecordCode('DEC', decisions.length + 1),
+          domain: 'iddav-marketing-intelligence',
+          approvalStatus: 'pending',
+          ...payload,
+        } as DecisionItem;
+        setDecisions((prev) => [newDecision, ...prev]);
+      });
+  };
+
   const handleUpdateRecord = (updatedRecord: IntelligenceRecord) => {
     fetch(`${API_BASE}/api/records/${updatedRecord.id}`, {
       method: 'PATCH',
@@ -341,6 +368,7 @@ export default function App() {
                   <DecisionReviewScreen
                     decisions={decisions}
                     onApproveDecision={handleApproveDecision}
+                    onCreateDecision={handleCreateDecision}
                     currentUserRole={currentUserRole}
                     onNavigate={setActiveScreen}
                   />
@@ -396,6 +424,7 @@ export default function App() {
               <DecisionReviewScreen
                 decisions={decisions}
                 onApproveDecision={handleApproveDecision}
+                onCreateDecision={handleCreateDecision}
                 currentUserRole={currentUserRole}
                 onNavigate={setActiveScreen}
               />
