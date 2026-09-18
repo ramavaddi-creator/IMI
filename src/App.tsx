@@ -54,6 +54,34 @@ export default function App() {
   const API_KEY = import.meta.env.VITE_API_KEY || '';
   const authHeaders = { 'Content-Type': 'application/json', 'X-API-Key': API_KEY };
 
+  // CHANGE: new -- AI Assist. Reports which provider(s) are actually
+  // configured on the backend, so the UI only ever shows a button that
+  // will genuinely work, never a placeholder that fails on click.
+  const [aiProviders, setAiProviders] = useState<{ claude: boolean; chatgpt: boolean }>({ claude: false, chatgpt: false });
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/ai/providers`, { headers: authHeaders })
+      .then((r) => r.json())
+      .then((p: { claude: boolean; chatgpt: boolean }) => setAiProviders(p))
+      .catch((err) => console.error('Could not check AI provider availability.', err));
+  }, []);
+
+  // CHANGE: new -- calls the backend's AI Assist endpoint. Returns the
+  // suggested text; the caller decides whether to use it. Never applies
+  // anything automatically.
+  const handleAiAssist = (text: string, provider: 'claude' | 'chatgpt'): Promise<string> => {
+    return fetch(`${API_BASE}/api/ai/assist`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ text, provider }),
+    })
+      .then((r) => r.json())
+      .then((data: { improved?: string; error?: string }) => {
+        if (data.error) throw new Error(data.error);
+        return data.improved || text;
+      });
+  };
+
   useEffect(() => {
     fetch(`${API_BASE}/api/inbox`, { headers: authHeaders })
       .then((r) => r.json())
@@ -367,6 +395,8 @@ export default function App() {
                     onNavigate={setActiveScreen}
                     onAddItemToInbox={handleAddItemToInbox}
                     currentUserRole={currentUserRole}
+                    aiProviders={aiProviders}
+                    onAiAssist={handleAiAssist}
                   />
                 )}
                 {activeScreen === 'inbox' && (
@@ -428,6 +458,8 @@ export default function App() {
                 onNavigate={setActiveScreen}
                 onAddItemToInbox={handleAddItemToInbox}
                 currentUserRole={currentUserRole}
+                aiProviders={aiProviders}
+                onAiAssist={handleAiAssist}
               />
             )}
             {activeScreen === 'inbox' && (

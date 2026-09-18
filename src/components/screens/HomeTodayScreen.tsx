@@ -69,9 +69,14 @@ interface HomeTodayScreenProps {
   onNavigate: (screen: ActiveScreen) => void;
   onAddItemToInbox: (item: Omit<InboxItem, 'id' | 'code' | 'domain'>) => void;
   currentUserRole: UserRole;
+  // CHANGE: new -- AI Assist. Only shows a button for a provider that's
+  // actually configured on the backend; onAiAssist returns a suggestion,
+  // never applies anything automatically.
+  aiProviders: { claude: boolean; chatgpt: boolean };
+  onAiAssist: (text: string, provider: 'claude' | 'chatgpt') => Promise<string>;
 }
 
-export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavigate, onAddItemToInbox, currentUserRole }) => {
+export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavigate, onAddItemToInbox, currentUserRole, aiProviders, onAiAssist }) => {
   const [inputText, setInputText] = useState('');
   const [isClassifying, setIsClassifying] = useState(false);
   const [classificationResult, setClassificationResult] = useState<{
@@ -89,6 +94,21 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
   const [evidenceOrigin, setEvidenceOrigin] = useState<EvidenceOrigin>('original');
   const [retrospectiveType] = useState<RetrospectiveType>('decision_time');
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
+  // CHANGE: new -- AI Assist state for the main intake textarea.
+  const [aiLoading, setAiLoading] = useState<'' | 'claude' | 'chatgpt'>('');
+  const [aiSuggestion, setAiSuggestion] = useState('');
+  const [aiError, setAiError] = useState('');
+
+  const handleAiImprove = (provider: 'claude' | 'chatgpt') => {
+    if (!inputText.trim()) return;
+    setAiLoading(provider);
+    setAiError('');
+    setAiSuggestion('');
+    onAiAssist(inputText, provider)
+      .then((improved) => setAiSuggestion(improved))
+      .catch((err: any) => setAiError(err?.message || 'Could not get a suggestion right now.'))
+      .finally(() => setAiLoading(''));
+  };
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
   const [sourceCategory, setSourceCategory] = useState<SourceCategory | ''>('');
   const [sourceType, setSourceType] = useState<SourceType | ''>('');
@@ -710,6 +730,64 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
               </div>
             )}
           </div>
+
+          {(aiProviders.claude || aiProviders.chatgpt) && inputText.trim().length > 8 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {aiProviders.claude && (
+                <button
+                  type="button"
+                  onClick={() => handleAiImprove('claude')}
+                  disabled={aiLoading !== ''}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono border border-zinc-300 rounded bg-white hover:bg-zinc-100 disabled:opacity-50"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{aiLoading === 'claude' ? 'Improving...' : 'Improve with Claude'}</span>
+                </button>
+              )}
+              {aiProviders.chatgpt && (
+                <button
+                  type="button"
+                  onClick={() => handleAiImprove('chatgpt')}
+                  disabled={aiLoading !== ''}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono border border-zinc-300 rounded bg-white hover:bg-zinc-100 disabled:opacity-50"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{aiLoading === 'chatgpt' ? 'Improving...' : 'Improve with ChatGPT'}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {aiError && (
+            <div className="p-2 bg-amber-50 border border-amber-300 rounded text-amber-900 text-[11px] font-mono">{aiError}</div>
+          )}
+
+          {aiSuggestion && (
+            <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded space-y-2">
+              <span className="text-[10px] font-mono uppercase text-indigo-900 font-bold block">AI Suggestion — review before using</span>
+              <p className="text-sm font-sans text-zinc-900 leading-relaxed bg-white p-2.5 rounded border border-zinc-200">{aiSuggestion}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputText(aiSuggestion);
+                    handleClassify(aiSuggestion);
+                    setAiSuggestion('');
+                  }}
+                  className="px-3 py-1 text-xs font-mono font-bold uppercase rounded bg-zinc-900 text-white hover:bg-zinc-800"
+                >
+                  Use This
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAiSuggestion('')}
+                  className="px-3 py-1 text-xs font-mono border border-zinc-300 rounded text-zinc-700 hover:bg-zinc-100"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             <div>
