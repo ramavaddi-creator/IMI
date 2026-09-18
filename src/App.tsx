@@ -343,10 +343,17 @@ export default function App() {
   };
 
   const handleUpdateRecord = (updatedRecord: IntelligenceRecord) => {
+    // CHANGE: now also sends verificationStatus -- previously silently
+    // dropped, so Verify/Dispute clicks would have updated the screen but
+    // never actually saved to the backend.
     fetch(`${API_BASE}/api/records/${updatedRecord.id}`, {
       method: 'PATCH',
       headers: authHeaders,
-      body: JSON.stringify({ interpretation: updatedRecord.interpretation, status: updatedRecord.status }),
+      body: JSON.stringify({
+        interpretation: updatedRecord.interpretation,
+        status: updatedRecord.status,
+        verificationStatus: updatedRecord.verificationStatus,
+      }),
     }).catch((err) => console.error('Could not persist this record update to the backend.', err));
 
     setRecords((prev) => prev.map((r) => (r.id === updatedRecord.id ? updatedRecord : r)));

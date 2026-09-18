@@ -94,6 +94,19 @@ export const RecordWorkspaceScreen: React.FC<RecordWorkspaceScreenProps> = ({
               <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-zinc-200 text-zinc-700 border border-zinc-300">
                 {currentRecord.recordType}
               </span>
+              {currentRecord.verificationStatus && (
+                <span
+                  className={`px-2 py-0.5 text-[10px] font-mono uppercase rounded border ${
+                    currentRecord.verificationStatus === 'verified'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      : currentRecord.verificationStatus === 'disputed'
+                      ? 'bg-amber-50 text-amber-800 border-amber-300'
+                      : 'bg-zinc-100 text-zinc-600 border-zinc-300'
+                  }`}
+                >
+                  {currentRecord.verificationStatus}
+                </span>
+              )}
               <RetrospectiveMarker type={currentRecord.observation.retrospective} showDetails />
             </div>
             <h1 className="text-base sm:text-lg font-bold text-zinc-950 font-sans leading-snug">{currentRecord.title}</h1>
@@ -123,6 +136,30 @@ export const RecordWorkspaceScreen: React.FC<RecordWorkspaceScreenProps> = ({
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-zinc-500 absolute right-2 top-2.5 pointer-events-none" />
             </div>
+            <button
+              onClick={() => onUpdateRecord({ ...currentRecord, verificationStatus: 'verified' })}
+              disabled={currentRecord.verificationStatus === 'verified'}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-mono font-medium rounded border transition-colors ${
+                currentRecord.verificationStatus === 'verified'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 opacity-80 cursor-default'
+                  : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{currentRecord.verificationStatus === 'verified' ? 'Verified' : 'Verify Fact'}</span>
+            </button>
+            <button
+              onClick={() => onUpdateRecord({ ...currentRecord, verificationStatus: 'disputed' })}
+              disabled={currentRecord.verificationStatus === 'disputed'}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-mono font-medium rounded border transition-colors ${
+                currentRecord.verificationStatus === 'disputed'
+                  ? 'bg-amber-50 text-amber-800 border-amber-300 opacity-80 cursor-default'
+                  : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-50'
+              }`}
+            >
+              <AlertOctagon className="w-3.5 h-3.5" />
+              <span>{currentRecord.verificationStatus === 'disputed' ? 'Disputed' : 'Mark Disputed'}</span>
+            </button>
             <button
               onClick={() => onNavigate('decision_review')}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-wider rounded bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-xs ml-1"
