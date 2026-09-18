@@ -290,6 +290,30 @@ export default function App() {
       });
   };
 
+  // CHANGE: new -- creates a real OutcomeItem, since no UI for this existed
+  // before. Same POST-with-local-fallback pattern as everything else.
+  const handleCreateOutcome = (payload: Omit<OutcomeItem, 'id' | 'code' | 'domain'>) => {
+    fetch(`${API_BASE}/api/outcomes`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify(payload),
+    })
+      .then((r) => r.json())
+      .then((created: OutcomeItem) => {
+        setOutcomes((prev) => [created, ...prev]);
+      })
+      .catch((err) => {
+        console.error('Could not save the new outcome to the backend, keeping it local-only for now.', err);
+        const newOutcome: OutcomeItem = {
+          id: `out-${Date.now()}`,
+          code: formatRecordCode('OUT', outcomes.length + 1),
+          domain: 'iddav-marketing-intelligence',
+          ...payload,
+        } as OutcomeItem;
+        setOutcomes((prev) => [newOutcome, ...prev]);
+      });
+  };
+
   const handleUpdateRecord = (updatedRecord: IntelligenceRecord) => {
     fetch(`${API_BASE}/api/records/${updatedRecord.id}`, {
       method: 'PATCH',
@@ -374,7 +398,12 @@ export default function App() {
                   />
                 )}
                 {activeScreen === 'outcome_review' && (
-                  <OutcomeReviewScreen outcomes={outcomes} currentUserRole={currentUserRole} onNavigate={setActiveScreen} />
+                  <OutcomeReviewScreen
+                    outcomes={outcomes}
+                    onCreateOutcome={handleCreateOutcome}
+                    currentUserRole={currentUserRole}
+                    onNavigate={setActiveScreen}
+                  />
                 )}
                 {activeScreen === 'ask_system' && (
                   <AskSystemScreen searchResults={searchResults} onNavigate={setActiveScreen} currentUserRole={currentUserRole} />
@@ -430,7 +459,12 @@ export default function App() {
               />
             )}
             {activeScreen === 'outcome_review' && (
-              <OutcomeReviewScreen outcomes={outcomes} currentUserRole={currentUserRole} onNavigate={setActiveScreen} />
+              <OutcomeReviewScreen
+                outcomes={outcomes}
+                onCreateOutcome={handleCreateOutcome}
+                currentUserRole={currentUserRole}
+                onNavigate={setActiveScreen}
+              />
             )}
             {activeScreen === 'ask_system' && (
               <AskSystemScreen searchResults={searchResults} onNavigate={setActiveScreen} currentUserRole={currentUserRole} />
