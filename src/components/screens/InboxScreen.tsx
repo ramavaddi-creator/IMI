@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { InboxItem, ItemType, EvidenceOrigin, ConfidenceLevel, RetrospectiveType, UserRole, ActiveScreen, MediaAttachment, SourceCategory, SourceType } from '../../types';
 import { SOURCE_CATEGORY_LABELS, SOURCE_TYPE_LABELS, EVIDENCE_WEIGHT_LABELS, COMMERCIAL_RELEVANCE_LABELS, defaultEvidenceWeight } from '../../types';
+import { AiAssistPanel } from '../common/AiAssistPanel';
 import type { EvidenceWeight, CommercialRelevance } from '../../types';
 import { MediaAttachmentPicker } from '../common/MediaAttachmentPicker';
 import { SourceCategoryBadge } from '../common/SourceCategoryBadge';
@@ -63,12 +64,14 @@ function computePriorityScore(item: InboxItem): { score: number; reasons: string
 interface InboxScreenProps {
   items: InboxItem[];
   onTriageAction: (itemId: string, action: 'ignore' | 'archive' | 'verify' | 'dispute' | 'promote') => void;
+  aiProviders: { claude: boolean; chatgpt: boolean };
+  onAiAssist: (text: string, provider: 'claude' | 'chatgpt') => Promise<string>;
   onAddItem: (item: Omit<InboxItem, 'id' | 'code' | 'domain'>) => void;
   onNavigate: (screen: ActiveScreen) => void;
   currentUserRole: UserRole;
 }
 
-export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction, onAddItem, onNavigate, currentUserRole }) => {
+export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction, onAddItem, onNavigate, currentUserRole, aiProviders, onAiAssist }) => {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'pending' | 'verified' | 'promoted'>('pending');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
@@ -511,7 +514,7 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <label htmlFor="capture-details-input" className="block text-[11px] font-mono uppercase text-zinc-600 mb-1">
                   Supporting Details / Quote / Context
                 </label>
@@ -523,6 +526,7 @@ export const InboxScreen: React.FC<InboxScreenProps> = ({ items, onTriageAction,
                   placeholder="Exact quote, guest statement, or observation ledger entry..."
                   className="w-full p-2 text-xs font-sans border border-zinc-300 rounded text-zinc-900"
                 />
+                <AiAssistPanel currentText={newFullText} onAccept={setNewFullText} aiProviders={aiProviders} onAiAssist={onAiAssist} />
               </div>
 
               <div className="p-3 bg-zinc-50 border border-zinc-300 rounded space-y-2">

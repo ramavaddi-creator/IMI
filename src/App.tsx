@@ -406,6 +406,8 @@ export default function App() {
                     onAddItem={handleAddItemToInbox}
                     onNavigate={setActiveScreen}
                     currentUserRole={currentUserRole}
+                    aiProviders={aiProviders}
+                    onAiAssist={handleAiAssist}
                   />
                 )}
                 {activeScreen === 'record_workspace' && (
@@ -425,6 +427,8 @@ export default function App() {
                     onCreateDecision={handleCreateDecision}
                     currentUserRole={currentUserRole}
                     onNavigate={setActiveScreen}
+                    aiProviders={aiProviders}
+                    onAiAssist={handleAiAssist}
                   />
                 )}
                 {activeScreen === 'outcome_review' && (
@@ -433,6 +437,8 @@ export default function App() {
                     onCreateOutcome={handleCreateOutcome}
                     currentUserRole={currentUserRole}
                     onNavigate={setActiveScreen}
+                    aiProviders={aiProviders}
+                    onAiAssist={handleAiAssist}
                   />
                 )}
                 {activeScreen === 'ask_system' && (
@@ -469,6 +475,8 @@ export default function App() {
                 onAddItem={handleAddItemToInbox}
                 onNavigate={setActiveScreen}
                 currentUserRole={currentUserRole}
+                aiProviders={aiProviders}
+                onAiAssist={handleAiAssist}
               />
             )}
             {activeScreen === 'record_workspace' && (
@@ -488,6 +496,8 @@ export default function App() {
                 onCreateDecision={handleCreateDecision}
                 currentUserRole={currentUserRole}
                 onNavigate={setActiveScreen}
+                aiProviders={aiProviders}
+                onAiAssist={handleAiAssist}
               />
             )}
             {activeScreen === 'outcome_review' && (
@@ -496,6 +506,8 @@ export default function App() {
                 onCreateOutcome={handleCreateOutcome}
                 currentUserRole={currentUserRole}
                 onNavigate={setActiveScreen}
+                aiProviders={aiProviders}
+                onAiAssist={handleAiAssist}
               />
             )}
             {activeScreen === 'ask_system' && (

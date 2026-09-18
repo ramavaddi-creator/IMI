@@ -5,6 +5,7 @@ import { RetrospectiveMarker } from '../common/RetrospectiveMarker';
 import { LearningProgression } from '../common/LearningProgression';
 import { MissingConfidenceBanner } from '../common/MissingConfidenceBanner';
 import { ArrowRight, CheckCircle2, AlertOctagon, FileSpreadsheet, Sparkles, ChevronRight, Plus, X, AlertCircle } from 'lucide-react';
+import { AiAssistPanel } from '../common/AiAssistPanel';
 
 interface OutcomeReviewScreenProps {
   outcomes: OutcomeItem[];
@@ -13,9 +14,11 @@ interface OutcomeReviewScreenProps {
   onCreateOutcome: (outcome: Omit<OutcomeItem, 'id' | 'code' | 'domain'>) => void;
   currentUserRole: UserRole;
   onNavigate: (screen: ActiveScreen) => void;
+  aiProviders: { claude: boolean; chatgpt: boolean };
+  onAiAssist: (text: string, provider: 'claude' | 'chatgpt') => Promise<string>;
 }
 
-export const OutcomeReviewScreen: React.FC<OutcomeReviewScreenProps> = ({ outcomes, onCreateOutcome, onNavigate }) => {
+export const OutcomeReviewScreen: React.FC<OutcomeReviewScreenProps> = ({ outcomes, onCreateOutcome, onNavigate, aiProviders, onAiAssist }) => {
   const [selectedOutcomeId, setSelectedOutcomeId] = useState<string>(outcomes[0]?.id || '');
   const activeOutcome = outcomes.find((o) => o.id === selectedOutcomeId) || outcomes[0];
 
@@ -173,7 +176,7 @@ export const OutcomeReviewScreen: React.FC<OutcomeReviewScreenProps> = ({ outcom
             />
           </div>
 
-          <div>
+          <div className="space-y-2">
             <label className="block text-[11px] font-mono uppercase text-zinc-600 mb-1">What Actually Happened *</label>
             <textarea
               rows={2}
@@ -183,6 +186,7 @@ export const OutcomeReviewScreen: React.FC<OutcomeReviewScreenProps> = ({ outcom
               className="w-full p-2 text-xs font-sans border border-zinc-300 rounded text-zinc-900"
               required
             />
+            <AiAssistPanel currentText={newActualOutcome} onAccept={setNewActualOutcome} aiProviders={aiProviders} onAiAssist={onAiAssist} />
           </div>
 
           <div className="p-3 bg-zinc-50 border border-zinc-300 rounded space-y-2.5">
@@ -284,6 +288,7 @@ export const OutcomeReviewScreen: React.FC<OutcomeReviewScreenProps> = ({ outcom
               className="w-full p-2 text-xs font-sans border border-zinc-700 rounded bg-zinc-800 text-white placeholder:text-zinc-500"
               required
             />
+            <AiAssistPanel currentText={newLearningSummary} onAccept={setNewLearningSummary} aiProviders={aiProviders} onAiAssist={onAiAssist} />
             <select
               value={newLearningStrength}
               onChange={(e) => setNewLearningStrength(e.target.value as LearningStrength)}

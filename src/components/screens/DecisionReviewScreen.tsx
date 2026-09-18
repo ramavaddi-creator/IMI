@@ -5,6 +5,7 @@ import { RetrospectiveMarker } from '../common/RetrospectiveMarker';
 import { ApprovalClassBadge } from '../common/ApprovalClassBadge';
 import { MissingConfidenceBanner } from '../common/MissingConfidenceBanner';
 import { AlertTriangle, Lock, CheckCircle2, Ban, EyeOff, Clock, Search, MessageSquare, Send, Plus, X } from 'lucide-react';
+import { AiAssistPanel } from '../common/AiAssistPanel';
 
 interface DecisionReviewScreenProps {
   decisions: DecisionItem[];
@@ -14,9 +15,11 @@ interface DecisionReviewScreenProps {
   onCreateDecision: (decision: Omit<DecisionItem, 'id' | 'code' | 'domain' | 'approvalStatus' | 'approvedBy' | 'approvedAt' | 'schemaFitNote'>) => void;
   currentUserRole: UserRole;
   onNavigate: (screen: ActiveScreen) => void;
+  aiProviders: { claude: boolean; chatgpt: boolean };
+  onAiAssist: (text: string, provider: 'claude' | 'chatgpt') => Promise<string>;
 }
 
-export const DecisionReviewScreen: React.FC<DecisionReviewScreenProps> = ({ decisions, onApproveDecision, onCreateDecision, currentUserRole }) => {
+export const DecisionReviewScreen: React.FC<DecisionReviewScreenProps> = ({ decisions, onApproveDecision, onCreateDecision, currentUserRole, aiProviders, onAiAssist }) => {
   const [selectedDecisionId, setSelectedDecisionId] = useState<string>(decisions[0]?.id || '');
   const activeDecision = decisions.find((d) => d.id === selectedDecisionId) || decisions[0];
 
@@ -276,7 +279,7 @@ export const DecisionReviewScreen: React.FC<DecisionReviewScreenProps> = ({ deci
             />
           </div>
 
-          <div>
+          <div className="space-y-2">
             <label className="block text-[11px] font-mono uppercase text-zinc-600 mb-1">Explicit Rationale *</label>
             <textarea
               rows={2}
@@ -286,6 +289,7 @@ export const DecisionReviewScreen: React.FC<DecisionReviewScreenProps> = ({ deci
               className="w-full p-2 text-xs font-sans border border-zinc-300 rounded text-zinc-900"
               required
             />
+            <AiAssistPanel currentText={newRationale} onAccept={setNewRationale} aiProviders={aiProviders} onAiAssist={onAiAssist} />
           </div>
 
           <div className="grid grid-cols-3 gap-2">
