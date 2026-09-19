@@ -69,6 +69,26 @@ export default function App() {
   // CHANGE: new -- calls the backend's AI Assist endpoint. Returns the
   // suggested text; the caller decides whether to use it. Never applies
   // anything automatically.
+  // CHANGE: new -- News/RSS goes through the backend (RSS feeds generally
+  // don't support direct browser CORS fetches, unlike GBIF/OpenAlex/etc.),
+  // so this follows the same callback pattern as AI Assist rather than a
+  // client-side fetchX function like the other sources.
+  const handleFetchNews = (): Promise<any[]> => {
+    return fetch(`${API_BASE}/api/news/feed`, { headers: authHeaders })
+      .then((r) => r.json())
+      .then((data: { items: { title: string; link: string; pubDate: string; source: string }[] }) => {
+        return (data.items || []).map((item) => ({
+          id: `news-${item.link}`,
+          summary: item.title,
+          fullText: `${item.title} (${item.source}). Published: ${item.pubDate || 'date unknown'}.`,
+          sourceUrl: item.link,
+          dateStr: item.pubDate ? new Date(item.pubDate).toISOString().split('T')[0] : '',
+          category: 'B_global_biodiversity',
+          sourceType: 'OFFICIAL',
+        }));
+      });
+  };
+
   const handleAiAssist = (text: string, provider: 'claude' | 'chatgpt'): Promise<string> => {
     return fetch(`${API_BASE}/api/ai/assist`, {
       method: 'POST',
@@ -404,6 +424,7 @@ export default function App() {
                     currentUserRole={currentUserRole}
                     aiProviders={aiProviders}
                     onAiAssist={handleAiAssist}
+                    onFetchNews={handleFetchNews}
                   />
                 )}
                 {activeScreen === 'inbox' && (
@@ -473,6 +494,7 @@ export default function App() {
                 currentUserRole={currentUserRole}
                 aiProviders={aiProviders}
                 onAiAssist={handleAiAssist}
+                onFetchNews={handleFetchNews}
               />
             )}
             {activeScreen === 'inbox' && (

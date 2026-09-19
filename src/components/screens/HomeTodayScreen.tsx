@@ -74,9 +74,11 @@ interface HomeTodayScreenProps {
   // never applies anything automatically.
   aiProviders: { claude: boolean; chatgpt: boolean };
   onAiAssist: (text: string, provider: 'claude' | 'chatgpt') => Promise<string>;
+  // CHANGE: new -- News/RSS source, proxied through the backend.
+  onFetchNews: () => Promise<any[]>;
 }
 
-export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavigate, onAddItemToInbox, currentUserRole, aiProviders, onAiAssist }) => {
+export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavigate, onAddItemToInbox, currentUserRole, aiProviders, onAiAssist, onFetchNews }) => {
   const [inputText, setInputText] = useState('');
   const [isClassifying, setIsClassifying] = useState(false);
   const [classificationResult, setClassificationResult] = useState<{
@@ -119,7 +121,7 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
   const [commercialRelevance, setCommercialRelevance] = useState<string>('');
   const [pullQuery, setPullQuery] = useState('Panthera tigris Tadoba');
   const [pullResults, setPullResults] = useState<{ id: string; summary: string; fullText: string; sourceUrl: string; dateStr: string; category: SourceCategory; sourceType: SourceType }[]>([]);
-  const [pullLoading, setPullLoading] = useState<'' | 'gbif' | 'openalex' | 'crossref' | 'ebird' | 'firms' | 'inaturalist' | 'semanticscholar' | 'feed'>('');
+  const [pullLoading, setPullLoading] = useState<'' | 'gbif' | 'openalex' | 'crossref' | 'ebird' | 'firms' | 'inaturalist' | 'semanticscholar' | 'feed' | 'news'>('');
   const [pullError, setPullError] = useState('');
   // CHANGE: replaces the hardcoded 'sources connected' badge with a real,
   // measured count -- a source only counts once it has actually succeeded,
@@ -273,6 +275,9 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
       track('OpenAlex', fetchOpenAlex(query)),
       track('Crossref', fetchCrossref(query)),
       track('iNaturalist', fetchInaturalist(query)),
+      // CHANGE: new -- News/RSS. Not query-dependent (Mongabay's feeds are
+      // fixed, not searchable), but included in the same refresh cycle.
+      track('News', onFetchNews()),
     ];
     if (apiKeys.ebird.trim()) tasks.push(track('eBird', fetchEbird()));
     if (apiKeys.firms.trim()) tasks.push(track('NASA FIRMS', fetchFirms()));
