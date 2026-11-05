@@ -24,6 +24,9 @@ import { RecordWorkspaceScreen } from './components/screens/RecordWorkspaceScree
 import { DecisionReviewScreen } from './components/screens/DecisionReviewScreen';
 import { OutcomeReviewScreen } from './components/screens/OutcomeReviewScreen';
 import { AskSystemScreen } from './components/screens/AskSystemScreen';
+import { ContentStudioScreen } from './components/screens/ContentStudioScreen';
+import { ConnectionsScreen } from './components/screens/ConnectionsScreen';
+import { EnquiriesScreen } from './components/screens/EnquiriesScreen';
 import { Smartphone } from 'lucide-react';
 
 export default function App() {
@@ -472,6 +475,9 @@ export default function App() {
                 {activeScreen === 'ask_system' && (
                   <AskSystemScreen searchResults={searchResults} onNavigate={setActiveScreen} currentUserRole={currentUserRole} />
                 )}
+                {activeScreen === 'content_studio' && <ContentStudioScreen />}
+                {activeScreen === 'connections' && <ConnectionsScreen />}
+                {activeScreen === 'enquiries' && <EnquiriesScreen />}
               </div>
               <div className="h-4 flex items-center justify-center mt-2">
                 <div className="w-24 h-1 bg-zinc-600 rounded-full" />
@@ -542,6 +548,9 @@ export default function App() {
             {activeScreen === 'ask_system' && (
               <AskSystemScreen searchResults={searchResults} onNavigate={setActiveScreen} currentUserRole={currentUserRole} />
             )}
+            {activeScreen === 'content_studio' && <ContentStudioScreen />}
+            {activeScreen === 'connections' && <ConnectionsScreen />}
+            {activeScreen === 'enquiries' && <EnquiriesScreen />}
           </div>
         )}
       </main>

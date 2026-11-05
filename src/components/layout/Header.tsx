@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '../../api';
 import type { ActiveScreen, UserRole } from '../../types';
-import { Home, Inbox, FileText, CheckSquare, TrendingUp, Search, UserCheck, Menu, X, Smartphone, Laptop, HelpCircle, Palette, Bot } from 'lucide-react';
+import { Home, Inbox, FileText, CheckSquare, TrendingUp, Search, UserCheck, Menu, X, Smartphone, Laptop, HelpCircle, Palette, Bot, Megaphone, Plug, Users } from 'lucide-react';
 
 interface HeaderProps {
   activeScreen: ActiveScreen;
@@ -24,6 +25,15 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelp,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Follow-ups due today or overdue, shown as a badge like the Inbox count.
+  const [enquiriesDue, setEnquiriesDue] = useState(0);
+  useEffect(() => {
+    const tick = () => api<{ counts: { overdue: number; dueToday: number } }>('/api/enquiries?view=due')
+      .then((d) => setEnquiriesDue(d.counts.overdue + d.counts.dueToday)).catch(() => {});
+    tick();
+    const t = setInterval(tick, 120_000);
+    return () => clearInterval(t);
+  }, [activeScreen]);
 
   const navItems: { id: ActiveScreen; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'home_today', label: 'Home / Today', icon: <Home className="w-4 h-4" /> },
@@ -32,6 +42,9 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'decision_review', label: 'Decision Review', icon: <CheckSquare className="w-4 h-4" /> },
     { id: 'outcome_review', label: 'Outcome Review', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'ask_system', label: 'Ask the System', icon: <Search className="w-4 h-4" /> },
+    { id: 'content_studio', label: 'Content Studio', icon: <Megaphone className="w-4 h-4" /> },
+    { id: 'enquiries', label: 'Enquiries', icon: <Users className="w-4 h-4" />, badge: enquiriesDue },
+    { id: 'connections', label: 'Connections', icon: <Plug className="w-4 h-4" /> },
   ];
 
   const handleNavClick = (screen: ActiveScreen) => {

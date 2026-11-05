@@ -6,6 +6,8 @@ import { ApprovalClassBadge } from '../common/ApprovalClassBadge';
 import { MissingConfidenceBanner } from '../common/MissingConfidenceBanner';
 import { AlertTriangle, Lock, CheckCircle2, Ban, EyeOff, Clock, Search, MessageSquare, Send, Plus, X } from 'lucide-react';
 import { AiAssistPanel } from '../common/AiAssistPanel';
+import { setPendingDecision } from '../../api';
+import { Megaphone } from 'lucide-react';
 
 interface DecisionReviewScreenProps {
   decisions: DecisionItem[];
@@ -19,7 +21,7 @@ interface DecisionReviewScreenProps {
   onAiAssist: (text: string, provider: 'claude' | 'chatgpt') => Promise<string>;
 }
 
-export const DecisionReviewScreen: React.FC<DecisionReviewScreenProps> = ({ decisions, onApproveDecision, onCreateDecision, currentUserRole, aiProviders, onAiAssist }) => {
+export const DecisionReviewScreen: React.FC<DecisionReviewScreenProps> = ({ decisions, onApproveDecision, onCreateDecision, currentUserRole, aiProviders, onAiAssist, onNavigate }) => {
   const [selectedDecisionId, setSelectedDecisionId] = useState<string>(decisions[0]?.id || '');
   const activeDecision = decisions.find((d) => d.id === selectedDecisionId) || decisions[0];
 
@@ -489,6 +491,12 @@ export const DecisionReviewScreen: React.FC<DecisionReviewScreenProps> = ({ deci
                 <div className="text-[10px] font-mono text-emerald-800 mt-0.5">
                   Sign-off by {activeDecision.approvedBy} on {activeDecision.approvedAt}
                 </div>
+                <button
+                  onClick={() => { setPendingDecision({ code: activeDecision.code, title: activeDecision.title }); onNavigate('content_studio'); }}
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded bg-zinc-900 text-white hover:bg-zinc-800"
+                >
+                  <Megaphone className="w-3.5 h-3.5" /> Create content from this decision
+                </button>
               </div>
             ) : (
               <button

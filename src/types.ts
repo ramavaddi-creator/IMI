@@ -406,7 +406,10 @@ export type ActiveScreen =
   | 'record_workspace'
   | 'decision_review'
   | 'outcome_review'
-  | 'ask_system';
+  | 'ask_system'
+  | 'content_studio'
+  | 'enquiries'
+  | 'connections';
 
 // CHANGE: shared ID formatting helper, matching blueprint Section 8's stated
 // convention (EVD-0001, INT-0001, DEC-0001 -- zero-padded, type-prefixed, no
