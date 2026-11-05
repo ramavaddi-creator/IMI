@@ -17,7 +17,7 @@ export const OwnerPinBar: React.FC = () => {
       ) : (
         <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); setOwnerPin(draft.trim()); setDraft(''); }}>
           <input type="password" autoComplete="off" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="PIN"
-            className="w-24 rounded px-2 py-1 text-zinc-900 text-xs" />
+            className="w-28 rounded px-2 py-1 bg-white text-zinc-900 placeholder:text-zinc-400 text-xs border border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-400" autoFocus={false} aria-label="Owner PIN" />
           <button type="submit" className="px-2 py-1 rounded bg-zinc-100 text-zinc-900 font-mono">Unlock</button>
         </form>
       )}

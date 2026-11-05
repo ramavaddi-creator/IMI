@@ -150,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        <nav aria-label="Primary" className="hidden md:flex items-center gap-1 border-t border-zinc-800/80 py-1 overflow-x-auto">
+        <nav aria-label="Primary" className="hidden md:flex flex-wrap items-center gap-1 border-t border-zinc-800/80 py-1">
           {navItems.map((item) => {
             const isActive = activeScreen === item.id;
             return (
