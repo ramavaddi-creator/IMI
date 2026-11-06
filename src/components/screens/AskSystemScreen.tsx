@@ -43,6 +43,9 @@ export const AskSystemScreen: React.FC<AskSystemScreenProps> = ({ searchResults,
     <div className="space-y-6">
       <div className="bg-white border border-zinc-300 rounded p-4 sm:p-6 shadow-xs space-y-4">
         <div>
+          <div className="mb-3 border border-amber-300 bg-amber-50 text-amber-900 text-xs rounded p-2">
+            Preview with sample results. Search is not yet connected to your own records, so nothing below is Iddav data.
+          </div>
           <h1 className="text-lg sm:text-xl font-bold text-zinc-950 font-sans">Ask the System (Institutional Retrieval)</h1>
           <p className="text-xs text-zinc-600 font-sans mt-0.5">
             Query past evidence, decisions, outcomes, and learnings. Every result shows its retrieval reason and distinguishes causal lineage from

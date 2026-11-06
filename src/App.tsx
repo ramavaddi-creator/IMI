@@ -10,10 +10,6 @@ import type {
 } from './types';
 import { formatRecordCode } from './types';
 import {
-  INITIAL_INBOX_ITEMS,
-  INITIAL_INTELLIGENCE_RECORDS,
-  INITIAL_DECISIONS,
-  INITIAL_OUTCOMES,
   INITIAL_SEARCH_RESULTS,
 } from './mockData';
 import { Header } from './components/layout/Header';
@@ -35,11 +31,14 @@ export default function App() {
   const [isMobilePreview, setIsMobilePreview] = useState<boolean>(false);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
 
-  const [inboxItems, setInboxItems] = useState<InboxItem[]>(INITIAL_INBOX_ITEMS);
-  const [records, setRecords] = useState<IntelligenceRecord[]>(INITIAL_INTELLIGENCE_RECORDS);
-  const [activeRecordId, setActiveRecordId] = useState<string>(INITIAL_INTELLIGENCE_RECORDS[0]?.id || '');
-  const [decisions, setDecisions] = useState<DecisionItem[]>(INITIAL_DECISIONS);
-  const [outcomes, setOutcomes] = useState<OutcomeItem[]>(INITIAL_OUTCOMES);
+  // Real data only: start empty and show what the database holds. Sample data
+  // is never mixed in, so every count and record on screen is Iddav's own.
+  const [inboxItems, setInboxItems] = useState<InboxItem[]>([]);
+  const [records, setRecords] = useState<IntelligenceRecord[]>([]);
+  const [activeRecordId, setActiveRecordId] = useState<string>('');
+  const [decisions, setDecisions] = useState<DecisionItem[]>([]);
+  const [outcomes, setOutcomes] = useState<OutcomeItem[]>([]);
+  const [backendError, setBackendError] = useState('');
   const [searchResults] = useState<SearchQueryResult[]>(INITIAL_SEARCH_RESULTS);
 
   // CHANGE: Wave 0 backend wiring. Real persistence for Inbox items via the
@@ -108,9 +107,13 @@ export default function App() {
   useEffect(() => {
     fetch(`${API_BASE}/api/inbox`, { headers: authHeaders })
       .then((r) => r.json())
-      .then((items: InboxItem[]) => setInboxItems(items))
+      .then((items: InboxItem[]) => {
+        if (!Array.isArray(items)) throw new Error((items as { error?: string })?.error || 'Unexpected response');
+        setInboxItems(items);
+      })
       .catch((err) => {
-        console.error('Could not reach the IMI backend, staying on local mock data.', err);
+        console.error('Could not reach the IMI backend.', err);
+        setBackendError(`Could not load your data from the IMI backend (${err instanceof Error ? err.message : 'network error'}). Nothing shown here is sample data; refresh to try again.`);
       });
   }, []);
 
@@ -121,24 +124,23 @@ export default function App() {
     fetch(`${API_BASE}/api/records`, { headers: authHeaders })
       .then((r) => r.json())
       .then((items: IntelligenceRecord[]) => {
-        if (items.length > 0) {
-          setRecords(items);
-          setActiveRecordId(items[0].id);
-        }
+        if (!Array.isArray(items)) return;
+        setRecords(items);
+        if (items[0]) setActiveRecordId(items[0].id);
       })
       .catch((err) => console.error('Could not reach the records endpoint, staying on local mock data.', err));
 
     fetch(`${API_BASE}/api/decisions`, { headers: authHeaders })
       .then((r) => r.json())
       .then((items: DecisionItem[]) => {
-        if (items.length > 0) setDecisions(items);
+        if (Array.isArray(items)) setDecisions(items);
       })
       .catch((err) => console.error('Could not reach the decisions endpoint, staying on local mock data.', err));
 
     fetch(`${API_BASE}/api/outcomes`, { headers: authHeaders })
       .then((r) => r.json())
       .then((items: OutcomeItem[]) => {
-        if (items.length > 0) setOutcomes(items);
+        if (Array.isArray(items)) setOutcomes(items);
       })
       .catch((err) => console.error('Could not reach the outcomes endpoint, staying on local mock data.', err));
   }, []);
@@ -396,6 +398,9 @@ export default function App() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
+        {backendError && (
+          <div className="mb-4 border border-red-300 bg-red-50 text-red-800 text-xs rounded p-3">{backendError}</div>
+        )}
         {isMobilePreview ? (
           <div className="flex flex-col items-center justify-center py-4">
             <div className="text-center mb-3">

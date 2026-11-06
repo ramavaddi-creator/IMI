@@ -543,7 +543,7 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
 
         <div className="border border-zinc-300 bg-zinc-50 rounded p-3.5 space-y-3 mb-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-[11px] font-mono uppercase text-zinc-600 block">Live Intelligence Feed (auto-refreshing, real APIs \u2014 no AI involved)</span>
+            <span className="text-[11px] font-mono uppercase text-zinc-600 block">Live Intelligence Feed (auto-refreshing, real APIs — no AI involved)</span>
             <span className="text-[10px] font-mono text-zinc-500">
               {connectedCount} source{connectedCount === 1 ? '' : 's'} connected
             </span>
@@ -578,7 +578,7 @@ export const HomeTodayScreen: React.FC<HomeTodayScreenProps> = ({ counts, onNavi
             value={pullQuery}
             onChange={(e) => setPullQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') refreshFeed(pullQuery); }}
-            placeholder="Search term, then press Enter \u2014 e.g. Panthera tigris Tadoba"
+            placeholder="Search term, then press Enter — e.g. Panthera tigris Tadoba"
             className="w-full p-2 text-xs font-mono border border-zinc-300 rounded bg-white text-zinc-900"
           />
           <button
