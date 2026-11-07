@@ -59,6 +59,10 @@ export const EnquiriesScreen: React.FC = () => {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  // Where enquiries live: in CRM mode they are kept in the Iddav CRM and IMI shows the older records read-only.
+  const [crm, setCrm] = useState<{ mode: 'crm' | 'local'; crmUrl: string | null }>({ mode: 'local', crmUrl: null });
+  useEffect(() => { api<{ mode: 'crm' | 'local'; crmUrl: string | null }>('/api/crm/status').then(setCrm).catch(() => {}); }, []);
+  const inCrm = crm.mode === 'crm';
 
   const run = async (k: string, fn: () => Promise<void>) => {
     setBusy(k); setError('');
@@ -136,8 +140,16 @@ export const EnquiriesScreen: React.FC = () => {
         <h1 className="text-lg font-bold text-zinc-900">Enquiries</h1>
         <span className="text-xs font-mono text-zinc-500">enquiry → quote → booking → stay</span>
         <div className="flex-1" />
-        <button className={btnDark} onClick={() => { setAdding(true); setSel(null); }}><Plus className="w-3.5 h-3.5" /> New enquiry</button>
+        {inCrm
+          ? <a className={btnDark} href={crm.crmUrl || '#'} target="_blank" rel="noreferrer">Open the CRM</a>
+          : <button className={btnDark} onClick={() => { setAdding(true); setSel(null); }}><Plus className="w-3.5 h-3.5" /> New enquiry</button>}
       </div>
+      {inCrm && (
+        <div className="border border-amber-300 bg-amber-50 text-amber-900 text-xs rounded p-3 space-y-1">
+          <div className="font-bold">Enquiries now live in the Iddav CRM.</div>
+          <div>New enquiries, quotes, bookings and follow-ups are handled there, so there is one copy. IMI reads how each campaign did from the CRM and shows it under Content Studio. The records below were captured in IMI earlier and are read-only.</div>
+        </div>
+      )}
       <OwnerPinBar />
       {error && <div className="border border-red-300 bg-red-50 text-red-800 text-xs rounded p-2">{error}</div>}
 

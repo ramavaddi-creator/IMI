@@ -42,6 +42,7 @@ interface Funnel {
     bookedValue: number; contribution: number; contributionKnown: boolean; medianFirstReplyHours: number | null };
   byChannel: Record<string, { enquiries: number; booked: number; bookedValue: number }>;
   topLossReason: string | null;
+  source?: 'crm' | 'local';
 }
 
 const panel = 'bg-white border border-zinc-300 rounded p-4';
@@ -419,7 +420,7 @@ export const ContentStudioScreen: React.FC = () => {
             {funnel && (
               <div className={`${panel} space-y-2`}>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-mono uppercase tracking-wider text-zinc-500">Results from Enquiries</span>
+                  <span className="text-xs font-mono uppercase tracking-wider text-zinc-500">{funnel.source === 'crm' ? 'Results from the Iddav CRM' : 'Results from Enquiries'}</span>
                   <span className="text-[11px] text-zinc-500">
                     {funnel.window.start ? `Window ${funnel.window.start} → ${funnel.window.end}${funnel.window.closed ? ' (closed)' : ''}` : 'Starts when the first post goes live'}
                   </span>
